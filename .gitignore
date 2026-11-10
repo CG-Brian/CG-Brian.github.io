@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+next-env.d.ts
+*.tsbuildinfo
+.DS_Store
+.vercel
+
+# Local-only files: not published
+IMG_5264.jpg
+info.md
+brian_jeong_portfolio_spec_v1.md

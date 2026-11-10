@@ -1,0 +1,221 @@
+<Note>
+Cirqloom is an independent research engineering project, currently in milestone M3. It measures attention patterns in GPT-2 Small and makes a published circuit explorable. It does not claim new circuit discoveries or causal verification. Code, bundles and methods are in the [repository](https://github.com/CG-Brian/cirqloom).
+</Note>
+
+## The question
+
+I got into mechanistic interpretability the way many people do: reading about attention, QK and OV circuits, previous-token heads, induction heads, copy suppression and the Indirect Object Identification circuit. I wanted to understand how a transformer *computes*, not just what it outputs.
+
+The more I read, the clearer one distinction became. Looking at an attention pattern and understanding a circuit are different activities. Drawing all 144 of GPT-2 Small's heads is easy. Knowing which patterns generalise, which survive a control, which heads a paper actually tested, which relations are supported by experiments and which are still hypotheses — that's the hard part. In the literature, those answers are spread across figures, appendices and prose.
+
+So I wanted one place where the different kinds of evidence could be explored together, without blurring into each other.
+
+<Pull>
+How can we visualize transformer circuits while keeping observed attention patterns, published circuit annotations and causal evidence distinct?
+</Pull>
+
+## From heads to circuits
+
+The first version of the idea was a 3D map of GPT-2 Small: every head placed by layer and index, which you could rotate, zoom, select, inspect and highlight. It's a perfectly good way to see a model's *structure*. It just doesn't explain any *computation*.
+
+The project grew as my understanding did. A circuit isn't a set of important heads with a highlight on them. It's a structured claim, about roles, about which components influence which, through which channel, at which token positions, on what evidence. A useful explorer has to represent individual heads, functional role groups, circuit membership, the relations between heads and groups, Q/K/V channels where they're known, where each claim came from, and how certain it is.
+
+<Figure caption="Schematic of the interface layout, drawn from the project's UI guidelines. It shows structure, not a screenshot.">
+  <InterfaceSchematic />
+</Figure>
+
+The design rule that came out of this, written into the project's UI guidelines, is that **the circuit, not the individual head, is the visual focus**. Heads stay understated: they never glow, never get recoloured wholesale by category, and never get edges the data doesn't contain. The evidence lives in the 2D panels, where it can be read precisely.
+
+<Pull>
+A circuit isn't just a set of important heads. It's a structured claim about roles, relations and information flow.
+</Pull>
+
+## The research pipeline
+
+Cirqloom keeps computation and visualization strictly apart. A Python pipeline does the science and writes a validated, versioned bundle; the browser app only ever reads that bundle. And two very different kinds of information go into it:
+
+<Figure caption="Two evidence sources, one bundle. They arrive separately and stay separately labelled all the way to the screen.">
+  <EvidenceSources />
+</Figure>
+
+On the measured side, the pipeline loads a **pinned revision** of GPT-2 Small, checks its dimensions, generates deterministic prompt suites, captures real attention, scores it with detectors, and exports observations along with the exact cells each detector used. Rebuilding without code changes produces byte-identical files, and CI checks that for the synthetic fixture.
+
+<Figure>
+  <CirqloomPipeline />
+</Figure>
+
+One early snag became a good design decision. The installed TransformerLens (4.x) no longer has the `HookedTransformer` API that most tutorials use. Rather than rewriting everything around a newer library interface, I isolated model loading behind an **adapter** built on its `TransformerBridge`. Detectors only ever see a standard `[layer, head, query, key]` attention array, so library churn stays in one file.
+
+The reason to bother with all this is lineage. A 3D atlas with synthetic colours can look just as convincing as one with real data. Here, every score in the interface traces back to a model revision, prompt suite, detector, parameters, sample count and the exact attention cells it averaged.
+
+<Pull>
+An experimental visualization needs an explicit trail from model execution to what's displayed.
+</Pull>
+
+## Measuring attention
+
+Three detectors are implemented. Each one is a precise definition: an id, a version, a compatible prompt suite, parameters, a boolean mask over the attention matrix, and a score equal to the mean attention inside that mask. Results are averaged over prompts and exported with their mean, standard deviation, per-prompt scores, n and settings.
+
+<Figure caption="Real attention, decoded from the committed float16 asset: one example prompt of eight from the 21-token repeated-sequence experiment. Outlined cells are the detector's exported mask.">
+  <AttentionMasks />
+</Figure>
+
+- **Previous token** looks at each position's attention to the token right before it.
+- **First token (BOS)** looks at attention to position 0. A high score often means an *attention sink*, so on its own it says little about function.
+- **Induction** looks only at the second copy of a repeated sequence, at the cell for the token that followed the earlier occurrence. It's a specific offset, not an average of some arbitrary diagonal.
+
+The frontend never re-derives these cells. It draws the masks the Python side exported, so the picture can't quietly disagree with the number.
+
+### A pattern means more next to a control
+
+Prompts come in matched pairs. The **repeated** suite is `BOS + X + X`, where X is a run of random tokens. The **control** is `BOS + X + Y`, with the same prefix followed by fresh tokens. The only thing that changes is whether the second half repeats the first.
+
+<Figure caption="Committed measurements at sequence length 50. Values are mean masked attention over 8 prompts; every score has status “experimental”.">
+  <RepeatedVsControl />
+</Figure>
+
+The induction-pattern heads (L5H5, L6H9, L7H10, L5H1, L7H2) score 0.84–0.94 on repeated sequences and essentially zero on the controls. L4H11 does the opposite: it attends to the previous token about 99% of the time *whether or not* anything repeats. That's what a positional pattern should look like. First-token attention barely moves either, and it's high for a lot of heads, which is exactly why a BOS score alone isn't evidence of a role.
+
+The detectors are also tested against idealised synthetic attention patterns, so each one demonstrably recognises its own pattern, treats uniform attention differently, and indexes its mask correctly.
+
+<Pull>
+A detector is a measurement definition, not an explanation of what a head does.
+</Pull>
+
+## Modeling published circuits
+
+This is where the project got interesting.
+
+Cirqloom imports the published **Indirect Object Identification circuit** for GPT-2 Small from [Wang et al. (2022)](https://arxiv.org/abs/2211.00593): 26 heads in 7 role classes (Name Mover, Negative Name Mover, Backup Name Mover, S-Inhibition, Induction, Duplicate Token and Previous Token), with 27 sourced relation records, each carrying a figure or section locator.
+
+My first schema stored circuit edges the obvious way: `source head → target head`. Then I read how the paper actually measured things. Almost every relation came from patching **one sender head at a time into a whole receiving role group**, through one input of the receivers (query, key or value), at named token positions. One experiment patched a group into a group. Effects on the output go into the logits, not into a head.
+
+Storing those as head pairs would claim results nobody measured.
+
+<Figure caption="Real records from the imported IOI annotations. The pair-level version would be denser and much more impressive-looking, and it would be wrong.">
+  <GranularityComparison />
+</Figure>
+
+So I redesigned the schema around **endpoints** that can be a head, a role group, or a special node (logits or embeddings). Every relation is stored at the granularity its evidence was measured at, along with its channel, token positions, evidence kind and status, the direction of the sender's effect, and its locator in the paper. Head → head is reserved for genuine pair-level evidence, and of the 27 IOI records exactly zero qualify.
+
+In the viewer, records that agree on everything are bundled into **8 ribbons** above the model, labelled Q, K, V or logits. That's a drawing convenience only. Every original record survives, and the relation inspector lists them all, with citations and a note about what the ribbon doesn't show.
+
+The local measurements and the published circuit can describe the same head without merging. L5H5 and L6H9 score high on my induction detector and also sit in the paper's Induction class. That overlap is interesting, but it isn't an independent replication of their IOI role. The inspector shows the paper's role and my repeated-token scores in separate sections, on purpose.
+
+<Pull>
+The data model of a research visualization must preserve the granularity of the experiment it represents.
+</Pull>
+
+## The interactive explorer
+
+The app is React and TypeScript, with React Three Fiber and Three.js for the scene and Zustand for shared state.
+
+- **3D atlas:** 12 layer frames of 12 heads. You can orbit, pan, zoom and reset. With a circuit active, members get thin role rings, non-members recede, and layers the circuit spans are outlined.
+- **Circuit graph:** role-group hubs float above their members, and relations are drawn as restrained ribbons rather than a hairball.
+- **Head inspector:** six sections, in a fixed order: identity, circuit membership, published annotations, measured observations, attention, and *what this does not show*.
+- **Attention heatmap:** one head on one prompt, with rows as queries and columns as keys, on a fixed 0–1 scale that's never rescaled per head (so a weak head looks weak). Future cells are hatched as "not attendable" rather than shown as zero, and *Show cells* outlines the exact mask behind a score.
+
+Each view does a different job. The scene gives structural orientation, the heatmap gives the detailed evidence, and the inspector gives interpretation and provenance. Role colours come from a colour-blind-safe palette and each is paired with a line pattern and marker shape, so nothing depends on colour alone.
+
+A 3D scene is great for exploring and frustrating for precision, so there's also a **keyboard-navigable head list** (arrow keys, Home/End, Escape to clear) and a relations list that reaches every ribbon. The list, the scene and the inspector all read the same selection. The camera pose deliberately lives *outside* React state: it changes every frame, and narrow store subscriptions keep each frame from re-rendering the interface.
+
+<Pull>
+A scientific interface should let you move from global structure to a local measurement to its source, by more than one route.
+</Pull>
+
+## Engineering decisions
+
+### Static, versioned bundles
+
+The browser never runs PyTorch. Running the model client-side would drag in dependencies, performance problems, compatibility risks and reproducibility questions, and the explorer doesn't need it. The analysis pipeline exports a bundle instead: manifest, nodes, experiments, observations, detector masks, circuit memberships, evidence-typed relations, tokens, attention assets and provenance. The schema is versioned, and four architecture decision records document how it got here.
+
+### One contract, two languages
+
+The schema exists twice: in **Pydantic** for Python and in **Zod** for TypeScript, with a cross-language contract test keeping them honest. Validation checks referential integrity, valid head identifiers, masks, evidence statuses, missing-score semantics (a missing score is never zero), the absence of NaN and Infinity, attention tensor shapes, and endpoint consistency. A synthetic fixture is maintained separately from the real GPT-2 bundle, and the UI labels fixture content as synthetic.
+
+### Float16 attention, loaded lazily
+
+Attention assets are stored as little-endian float16 `[layer, head, q, k]` arrays, and the frontend decodes only the selected head's slice. Scores are computed at full precision in Python. The heatmap stays light while the numbers that matter keep their precision.
+
+### Tests at every layer
+
+A bug in the numbers, the data model or the interface can each produce a misleading picture, so each one is tested.
+
+<Figure>
+  <TestSuites />
+</Figure>
+
+CI runs the Python tests, rebuilds the synthetic fixture and checks it matches byte-for-byte, validates both committed bundles, and runs the frontend checks and browser tests.
+
+<Pull>
+A visualization is only trustworthy when the calculations, the serialization and the interactions can all be validated.
+</Pull>
+
+## Observations & limitations
+
+Cirqloom's scientific output so far is exploratory, and I'd rather say exactly what it is:
+
+- **Induction-like attention.** Several GPT-2 Small heads show strong repeated-sequence attention that collapses on matched controls. That's consistent with induction-like behaviour, but it doesn't prove a copying mechanism.
+- **Previous-token attention.** L4H11 is the clearest example, at about 0.99 in both suites.
+- **First-token attention is everywhere.** The median head puts roughly half its attention on the first token, which is a good reminder that a high BOS score isn't a role.
+- **Overlap with IOI.** Some locally flagged heads also appear in the published circuit. That's interesting, but it isn't causal verification.
+
+Attention measurements generate hypotheses. Circuit-level explanations need more evidence than attention can give.
+
+**Limitations, stated plainly:**
+
+- **Attention isn't causality.** The detectors measure where attention goes, not what a head contributes to the output.
+- **One model.** The measured bundle is GPT-2 Small; multi-model support is a design extension, not a demonstrated capability.
+- **One prompt distribution.** Repeated random tokens aren't natural language, and detectors may behave differently on other inputs.
+- **Imported evidence.** IOI roles come from the paper. I visualize its annotations; I didn't re-run its interventions.
+- **Detector semantics.** Induction-pattern attention doesn't prove copying, and first-token attention doesn't prove an information-processing role.
+- **Precision.** Float16 assets are good for display, not for unlimited precision.
+- **No causal tooling yet.** There's no intervention system in the current version.
+
+<Figure caption="Every claim carries a status. Dashed and dotted borders mark states that aren't measured findings.">
+  <EvidenceStatuses />
+</Figure>
+
+## What's next
+
+These are directions, not features:
+
+- **IOI task replay (near term).** Run IOI-style prompts with real token roles, so the circuit can be inspected on its own task distribution. That's different from importing its annotations.
+- **Copy suppression (near term).** Investigate candidate heads with appropriate attention, token-specific logit contribution and control measurements, without assuming a head's reputation proves its behaviour.
+- **Logit attribution.** Connect head outputs to downstream token-logit contributions.
+- **Causal interventions.** Activation patching and ablation, to test importance rather than infer it.
+- **Sparse features.** Possibly connect SAE features to circuit components.
+
+Further out, I'm also curious whether circuit-level tools could connect to natural-language descriptions of internal representations, and eventually to multimodal generative models. That's a separate research direction. Cirqloom doesn't implement any of it.
+
+The long-term goal is to move from *observing* attention patterns to *reconstructing and testing* explanations of how components interact.
+
+## Reflections
+
+### Visualization isn't explanation
+
+A 3D head map makes structure easy to explore. But connecting visually interesting components doesn't turn a picture into an explanation; that takes explicit hypotheses and evidence.
+
+### Attention patterns generate hypotheses
+
+Previous-token and induction detectors point at things worth investigating. They don't say what a head writes into the residual stream or how it moves a logit. I learned to keep correlational observations and causal claims in different boxes.
+
+### Claims need the right data model
+
+Importing IOI taught me that most of its relations are head-to-group, not head-to-head. Drawing them as pairs would have overstated the evidence, so the schema changed to preserve the experiment's granularity.
+
+### Controls matter as much as results
+
+A high induction score means much more next to a matched non-repeated sequence. Controls belong *in* the pipeline, not in a footnote.
+
+### Provenance is part of the interface
+
+People should be able to see where a claim came from and what kind of evidence backs it. Published annotations, exploratory measurements and missing data shouldn't look equally authoritative.
+
+### Research tooling deserves production discipline
+
+Model adapters, numerical checks, data contracts, frontend state, rendering performance and tests: the science was only as reliable as the software carrying it.
+
+<Pull>
+The hardest part of building Cirqloom wasn't rendering transformer heads in 3D. It was deciding what the visualization could legitimately claim about the model.
+</Pull>

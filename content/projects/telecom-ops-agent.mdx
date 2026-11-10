@@ -1,0 +1,197 @@
+<Note>
+A hackathon prototype built in April 2026 for Snowflake Hackathon 2026, not a deployed product. The data was a Korean telecom subscription and contract dataset provided for the event; it isn't redistributed, so channel names here are anonymised. Results are offline and reported by the [repository](https://github.com/CG-Brian/telecom-ops-agent).
+</Note>
+
+## The challenge
+
+Every department had a dashboard, and every dashboard was right about its own little world.
+
+Marketing watched acquisition channels and campaign conversion rates. Sales watched contracts and revenue by region. The conversion team watched the funnel. Customer service watched call volume and connection rates. Each view was useful. None of them could answer the question an operations lead actually asks on Monday morning.
+
+The interesting decisions live *between* departments. Marketing can look great while customers quietly drop out of the funnel. In that situation, spending more on ads just pays to send more people into the same leak.
+
+So the goal wasn't another dashboard. It was a system that could take scattered operational evidence and answer:
+
+<Pull>
+Given the evidence we have, what should we fix first?
+</Pull>
+
+## Learning the Snowflake AI stack
+
+I came into this hackathon thinking of Snowflake as a cloud SQL database. I left thinking of it as an integrated data and AI environment, where the hard part is how the pieces connect.
+
+<Figure caption="Conceptual stack, labelled by responsibility. No account identifiers, credentials or restricted data.">
+  <SnowflakeStack />
+</Figure>
+
+Each layer had a different job. Warehouses supply compute, databases and schemas provide the namespace, and analytical views hold prepared business datasets. The Semantic View explains what those datasets *mean*. Cortex Analyst turns questions into SQL, Snowpark lets Python run and fetch it, Cortex Complete writes language, and Streamlit puts a face on all of it.
+
+What I actually had to learn wasn't SQL syntax. It was **service boundaries, execution contexts, permissions, and how information flows** between the data side and the AI side. Most of my bugs lived in those gaps.
+
+## From natural language to SQL
+
+In the advanced agent, a business question becomes evidence in a handful of steps. The question is routed to the relevant domains, each domain gets a focused analytical question, Cortex Analyst generates SQL against the Semantic View, the SQL is pulled from the structured response and executed through Snowpark, and the results become structured evidence records.
+
+<Figure caption="The advanced agent's path from question to evidence. Routing is explicit keyword matching, not a trained classifier.">
+  <QuestionToEvidence />
+</Figure>
+
+### The semantic layer is the real interface
+
+Ask "which marketing channel performs best?" and you've asked something genuinely ambiguous. Performance could mean sessions, contracts, conversion rate, revenue, or some mix of them. A model left to guess will pick *something*, run it, and report it confidently.
+
+The semantic model is where that ambiguity gets resolved. A YAML definition over five analytical views tells Cortex Analyst what each business concept means in terms of tables, columns and metrics. When answers were wrong, the semantic contract was usually a better place to look than the wording of the question.
+
+<Pull>
+Natural-language SQL is only as reliable as the semantic contract connecting business intent to the underlying database.
+</Pull>
+
+### When the question wasn't the problem
+
+A good part of the hackathon was spent learning that "Cortex Analyst failed" is a symptom, not a diagnosis.
+
+<Figure caption="Places an Analyst request could fail before the question's wording ever mattered.">
+  <IntegrationFailures />
+</Figure>
+
+The agent ended up preferring a programmatic access token for REST authentication, with fallbacks through the Snowpark session, and gave Analyst calls a longer timeout and a retry. None of that is glamorous, but it's the difference between an agent that works and one that only works on the laptop it was written on.
+
+The useful habit was learning to tell a **model reasoning failure** apart from a **platform integration failure**. They produce the same disappointed face but need completely different fixes.
+
+## The decision engine
+
+The main engine lives in `agent_v2.py`, and its structure follows one idea: give every kind of work to the component that's actually good at it.
+
+<Figure>
+  <ThreeOwners />
+</Figure>
+
+That separation means the final LLM never has to invent query results, do arithmetic and write persuasive prose all in one breath, which is exactly the combination where fluent nonsense tends to slip in.
+
+In practice, the engine runs in five stages:
+
+1. **Classify the decision.** Keyword routing identifies root-cause, priority, budget, operational or regional questions, plus the domains involved.
+2. **Gather evidence.** Each domain's results become a structured record: marketing gets CVR, revenue per session, sessions and channel rank; funnel gets stage conversion, drop-off and the bottleneck; customer service gets connection rates, call patterns and the target; sales gets contracts and revenue.
+3. **Classify signals.** Each domain is labelled good, neutral or bad by explicit thresholds.
+4. **Detect conflicts and prioritize.** Rules look at the signals together and rank the interventions.
+5. **Synthesize.** Cortex Complete turns all of that into a conclusion, a direct cause, possible indirect contributors, ranked actions and supporting evidence.
+
+<Figure caption="Illustrative signals. The conflict rule and the priority order follow the logic in the repository.">
+  <MultiDomainEngine />
+</Figure>
+
+A single-domain assistant would look at marketing, see strong acquisition, and cheerfully suggest spending more. Looking across domains changes the answer: if people arrive and then leak out of the funnel, the funnel comes first. These rules are explicit business logic. They flag a pattern worth acting on; they don't prove causality, and I'm careful not to say they do.
+
+<Pull>
+Individual metrics describe performance. Priorities come from how those metrics interact.
+</Pull>
+
+## Key engineering decisions
+
+### A better question than "highest conversion rate"
+
+**The problem.** The obvious way to pick the best channel is to sort by conversion rate. But a channel with a dazzling CVR and twelve visitors isn't a strategy, and a high-converting channel can still contribute very little revenue.
+
+**The decision.** Rank channels with an explicit composite: **40% conversion rate, 60% normalized revenue per session**, counting only channels with at least 500 sessions and 50 contracts. It's computed in plain Python, with no model in the loop.
+
+<Figure caption="CVR-only ranks against composite ranks, as reported in the repository. Channel names anonymised.">
+  <RankingComparison />
+</Figure>
+
+By the repository's analysis, three of the five channels a CVR-only ranking would put at the top fall outside the composite top five, one of them all the way to 13th.
+
+**The trade-off.** The weights encode a business preference, and someone could reasonably choose different ones. The score is an explicit, project-defined objective, not a proven optimal budget formula. But its being explicit is the point: anyone can see exactly why a channel ranked where it did, and argue with the weights rather than with a model's mood.
+
+<Pull>
+Numerical decision criteria should be explicit and inspectable, not hidden inside model-generated reasoning.
+</Pull>
+
+### Evidence before explanation
+
+**The problem.** LLMs can write wonderfully convincing business analysis about numbers that don't exist.
+
+**The decision.** Keep numbers and words in separate stages: SQL results become structured evidence, deterministic logic evaluates and ranks it, and only then does Cortex Complete write. The UI also exposes the underlying evidence and technical details, so a reader can check the reasoning instead of taking it on faith.
+
+**The trade-off.** It's more plumbing than a single prompt, and it reduces hallucination risk rather than eliminating it. A model can still phrase computed evidence badly. But it's no longer being asked to produce that evidence.
+
+### A stable demo and an ambitious agent
+
+The repository deliberately contains two paths, and they should never be mistaken for each other.
+
+<Figure caption="Two paths, two goals. The demo's SQL was generated with Cortex Analyst and then pinned for repeatable runs.">
+  <DemoVsAgent />
+</Figure>
+
+**The stable demo** (`snowflake_app.py`) runs as Streamlit in Snowflake and covers three verified scenarios: marketing channel recommendation, funnel bottleneck identification and customer-service analysis. Its SQL was generated once and then fixed, so each run is repeatable.
+
+**The advanced agent** (`agent_v2.py`, behind a local Streamlit app) takes open-ended questions, generates SQL dynamically through Cortex Analyst, and runs the full multi-domain engine.
+
+**Why both?** A hackathon demo has one job: work, reliably, in front of people. The dynamic path depended on more integration behaviour than I wanted riding on a live demo. Pinning verified scenarios gave the core idea a dependable stage, while the agent kept the flexible architecture. The demo is not a fully dynamic production agent, and I don't present it as one.
+
+<Pull>
+Prototype ambition and demo reliability are different engineering goals. It helps to admit which one you're serving.
+</Pull>
+
+## Evaluation
+
+The repository includes an evaluation harness (`eval.py`) and a 15-case set (`eval_set.csv`): **12 marketing recommendation questions and 3 multi-domain priority questions**. Each case defines an expected rank band (top-1, top-3) or an expected priority, along with the behaviour it should show. The harness checks recommendation agreement, numerical grounding within a 2-point threshold, multi-domain priority choices, response completeness, and CVR and revenue comparisons against the average valid channel.
+
+These are the results the repository reports for that set:
+
+<ReportedResults />
+
+And the honest fine print, which matters as much as the numbers:
+
+- **The answer key comes from the same rule.** Expected rankings are derived from the project's own composite score, so agreement measures consistency with a defined policy, not economic optimality.
+- **Many cases are paraphrases.** Ten of the twelve marketing questions expect the same top channel.
+- **The data is cached.** The harness fetches each domain's data once through Cortex Analyst and then reuses it, so the cases mainly exercise routing, rules and synthesis rather than fresh SQL generation every time.
+- **The grounding check is narrow.** It compares the recommended channel's evidence-layer CVR against the dataset; it doesn't audit every number in the generated text.
+- **An earlier, different result exists.** The English README still reports a smaller, earlier three-case evaluation with different figures (Top-1 in one of three cases).
+- **I haven't re-run it here.** That needs the Snowflake environment and the hackathon data, which aren't public. Everything above is repository-reported.
+
+<Pull>
+Evaluating a decision system only means something once you've said exactly what a correct decision is.
+</Pull>
+
+## My contributions
+
+The repository documents the implementation, and these are the parts of it I worked on:
+
+- **Data exploration.** I explored the operational datasets and identified which measurements were actually useful for decisions.
+- **Snowflake environment and semantic modelling.** I configured the analytical environment and wrote the semantic model that Cortex Analyst generates SQL from.
+- **Agent development.** I built the Python pipeline connecting business questions to structured, multi-domain evidence.
+- **Deterministic decision logic.** I implemented composite scoring, signal interpretation, conflict detection and action prioritization.
+- **LLM integration.** I connected Cortex Analyst and Cortex Complete to the analysis workflow.
+- **Debugging.** I worked through authentication, API configuration, semantic-model references and query execution problems.
+- **Evaluation.** I built the rule-defined evaluation of recommendations and numerical grounding.
+- **Interfaces.** I built the Streamlit apps for both the verified demo and the advanced agent.
+
+## Lessons learned
+
+### Data infrastructure is part of AI engineering
+
+A working LLM API doesn't make a working AI application. The environment, the semantic model, authentication, SQL generation and execution all had to work before the model's answer could mean anything.
+
+### SQL generation isn't business reasoning
+
+Generating the right SQL retrieves information. Deciding what to prioritize is a separate job, with its own logic and comparisons. Treating them as one step is how you get confident answers to the wrong question.
+
+### Deterministic rules make decisions inspectable
+
+When scoring and arithmetic are reproducible, the LLM can focus on what it's good at, which is communicating and contextualising results that were already worked out.
+
+### Cross-domain data changes the decision
+
+A marketing metric on its own told one story; marketing plus the funnel told a different one. Some priorities only become visible when the departments' numbers are in the same room.
+
+### Reliable demos need deliberate scope
+
+The verified demo was reproducible, and the dynamic agent was flexible. Keeping that distinction clear let the prototype show real functionality without overstating what it could do.
+
+### Evaluation criteria define success
+
+A system agreeing with its own ranking rule doesn't prove it found the best business decision. Good evaluation is upfront about its objective, its data and its limits.
+
+<Pull>
+The hardest part of data-driven AI often isn't generating a fluent answer. It's making sure the model gets the right data through a reliable path.
+</Pull>

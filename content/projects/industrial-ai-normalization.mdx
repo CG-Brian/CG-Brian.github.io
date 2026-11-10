@@ -1,0 +1,172 @@
+<Note>
+This work happened in a professional enterprise setting, so the customer, codenames, schemas and source documents stay private. Every example on this page is synthetic: invented for illustration and deliberately boring.
+</Note>
+
+## The challenge
+
+Industrial engineering runs on spreadsheets. Not the tidy kind with one header row and a polite column per field, but the kind built by people, for people, across different teams, vendors and facilities. Each one has its own opinion about where a header should go.
+
+So the inputs looked roughly like this:
+
+- Headers that wander to wherever there was room.
+- Merged cells and irregular table layouts.
+- Hidden rows and columns, which may or may not matter.
+- Legends and annotations that only make sense with domain knowledge.
+- Relationships encoded at the *intersections* of rows and columns.
+- The same equipment spelled three different ways.
+- A second source that sometimes disagrees with the first.
+
+The goal was to turn all of that into one consistent, structured representation that downstream applications could rely on. That meant preserving relationships, keeping repeated entities consistent, reconciling sources, and letting a person trace any normalized value back to the cell it came from.
+
+The tempting shortcut is to hand the whole workbook to an LLM and ask for JSON. It will happily oblige, and that's the problem. A model can give you a beautifully formatted answer to a question it only half understood. In industrial data workflows, *plausible* isn't the bar. **Consistent, traceable, validated and reviewable** is.
+
+<Pull>
+Reliable AI engineering isn't about handing everything to the model. It's deciding what should be deterministic, what genuinely needs semantic reasoning, and where a human still needs to look.
+</Pull>
+
+## The architecture
+
+First, some honesty about scope: I didn't design this whole system. I worked inside a layered one, mostly on the normalization pipeline at its core. The layering still explains a lot of the decisions below, so here it is in the abstract.
+
+<Figure caption="Conceptual layers only. No real service names, endpoints or infrastructure.">
+  <ArchitectureDiagram />
+</Figure>
+
+The application backend owns everything stateful: users, files, job status, persistence, access control and the review workflow. The AI processing service is a **stateless computation boundary**. It takes a structured representation of a sheet plus the parsing settings a user confirmed, and returns normalized, validated output.
+
+That split pays off in small, everyday ways. The service never has to know who's logged in, and the backend never has to know what a merged cell is. Model calls can be slow, so the backend owns the job and runs it asynchronously while the service just does the computation. Underneath, the domain logic stays independent of the API framework and the LLM provider, so it can be tested on its own.
+
+### Deterministic first, semantic second
+
+A surprising amount of a spreadsheet isn't ambiguous at all. Cell positions, ranges, merged cells, hidden rows, header locations and table boundaries can all be *computed*. Asking a model to rediscover them is paying a probabilistic system to do arithmetic.
+
+So the pipeline separates structure from meaning. A configuration layer describes which regions of the sheet hold the relevant data. Those settings can be suggested automatically, then corrected by a user before anything is parsed. Extraction from there is deterministic, and the LLM only sees what code can't settle: what something *means*.
+
+<Figure caption="This is a design decision, not a benchmark. The claim isn't a measured win; it's that the model no longer has to guess things the code can know.">
+  <PipelineComparison />
+</Figure>
+
+The model gets cleaner, more predictable input, and its output is easier to validate because we know what shape to expect. One detail I like: when hidden rows are skipped, their original coordinates are kept rather than renumbered. Otherwise "row 18" would quietly mean something different at the end of the pipeline than at the start.
+
+<Pull>
+Not every problem involving messy data should be solved probabilistically.
+</Pull>
+
+## The defining decision
+
+This is the part of the project I think about most.
+
+The sheets describe relationships between shared entities. One sensor, say, might be connected to a fan, an alarm and a valve. The original approach normalized **per relationship**: sensor + fan became one task, sensor + alarm another, and sensor + valve a third.
+
+Each call saw the same sensor in different company. The model, being a good contextual reader, read it slightly differently each time: "Temperature Sensor 1" in one place, "North Temp Probe" in another. None of those is wrong on its own. Together, they're a mess, and downstream now believes there are three sensors.
+
+Turning the temperature down doesn't fix that. Lower temperature reduces randomness, but the *inputs* were different on every call. The variation was structural, baked into how the question was asked.
+
+<Figure caption="Synthetic example. The readings are invented, and no accuracy or token figures are implied.">
+  <EntityOnceDiagram />
+</Figure>
+
+The way out came from noticing that **the unit you output isn't necessarily the unit you should normalize.** The final data still describes individual relationships, but shared entities don't need to be reinterpreted for every one of them. So the revised flow became:
+
+1. Extract entities and their relationships deterministically.
+2. Normalize each distinct entity **once**.
+3. Normalize relationship-specific attributes separately.
+4. Reassemble the two deterministically.
+
+Each canonical entity is reused everywhere it appears, so it can't pick up a new identity in every context. When an entity is normalized, it always gets the same, stable context: its own source fields, the annotations and legends that apply to it, and any relevant reference information. It no longer depends on whichever neighbour it happened to be standing next to.
+
+This also forced a cleaner question: *whose information is this?* "Closes above 80 °C" isn't a property of the valve or of the sensor. It describes how the two relate, so it belongs on the relationship. Mixing those up is how a sensor ends up with a fact that was really about a valve.
+
+<Pull>
+When an LLM pipeline keeps giving inconsistent answers, the fix might not be a better prompt. It might be a different unit of computation.
+</Pull>
+
+### Model the structure before the meaning
+
+Underneath all of this is a data-modelling choice. The source wasn't a list of independent records; it was a **matrix**. Rows are source entities, columns are target entities, intersections are relationships, and the values in them are relationship attributes.
+
+Read it as a flat table and each row looks like one complete record. That's how you end up with a pressure sensor that is somehow also a pump. Keeping entities, relationships and relationship attributes distinct is what made the normalization and assembly steps coherent.
+
+<Figure caption="Three synthetic sources, two targets, four relationships.">
+  <MatrixToGraph />
+</Figure>
+
+A model can't compensate for a representation that gets the domain wrong. The data model has to be right first.
+
+## Designing for reliability
+
+### Every value should be able to explain itself
+
+A structured result isn't much use if nobody can tell where it came from. A normalized value might have been extracted directly, interpreted by the LLM, reconciled against reference data, or picked from conflicting candidates. Those are very different levels of confidence.
+
+So source information travels with the data. At record level, an entity or relationship points back to its source row or column. At field level, an individual attribute points back to the cell or reference entry it came from.
+
+<Figure caption="Illustrative structure only, not the real schema.">
+  <ProvenanceTrace />
+</Figure>
+
+There's one catch. An LLM will cite `Sheet2!D18` with exactly the same confidence whether or not D18 says what it claims. A model returning a reference doesn't establish that the reference is correct, so provenance from the model gets checked against the source input wherever possible.
+
+The aim is for an output to answer two questions: *what* the value is, and *why* it was chosen. In enterprise settings, where people are expected to verify and audit, the second answer matters as much as the first.
+
+### When sources disagree
+
+Some normalization involves more than one document. A primary spreadsheet might carry signal metadata that also lives in a separate reference dataset, and the two won't always agree. One can be out of date, they can use different naming conventions, records can be incomplete, and identifiers can be duplicated or maintained by different teams.
+
+Asking the model to settle each conflict on the fly would mean improvising a policy hundreds of times. Instead, reconciliation follows **deterministic rules**. A designated reference can take precedence for certain kinds of metadata. Discarded alternatives can be kept for review. Relationship-specific information stays with the source it belongs to, instead of being overwritten by unrelated reference data.
+
+<Figure caption="A made-up policy for illustration. The real one belongs to the people who own the data.">
+  <ReconciliationTable />
+</Figure>
+
+Deciding which source is authoritative is a data-governance question, not a language-model question. It should be written down as rules, not re-decided on every call.
+
+### Saying "I don't know" on purpose
+
+LLM output can come back malformed, incomplete, or pointing at indices that don't exist. One bad item shouldn't sink an otherwise useful result.
+
+So the workflow tells apart entities that normalized cleanly, outputs that are invalid or incomplete, failures worth retrying, and items a human should look at. Malformed results get a **bounded** validation-and-retry attempt. If an item still can't be normalized reliably, the pipeline names it as missing rather than slipping in an unverified value. The review workflow then lets people inspect the results, see where the uncertainty is, and correct things before anything goes downstream.
+
+<Figure caption="Synthetic run. Statuses are illustrative, not production success rates.">
+  <OutcomeLedger />
+</Figure>
+
+<Pull>
+An AI system that clearly says what it couldn't determine can be more useful than one that always returns a complete-looking answer.
+</Pull>
+
+## My contributions
+
+This was team work inside a product I didn't architect end to end, so here is the honest split.
+
+### What I worked on
+
+- Structured extraction and normalization logic for heterogeneous engineering spreadsheets.
+- Domain representation and mapping logic: I implemented and refined how entities, relationships and their attributes were represented and mapped.
+- Consistency in how repeated entities were normalized, which is the problem entity-once normalization addresses.
+- Edge cases around duplicate entities and how relationships were interpreted.
+- Structured output validation and source traceability, which I contributed to.
+
+### The system around it
+
+- The layered architecture and stateless processing boundary I worked within.
+- The application backend: users, files, job lifecycle, persistence and access control, built by the wider team.
+- Asynchronous orchestration and the human review workflow that my pipeline output fed into.
+
+## Lessons learned
+
+### Architecture can reduce model uncertainty
+
+I went in thinking of LLM variability as a sampling problem: turn the temperature down and hope. It's also a decomposition problem. How a task is split up, and what context each piece sees, can add or remove whole sources of inconsistency. Entity-once normalization taught me that the hard way.
+
+### The data model comes before the prompt
+
+The difference between entities, relationships and relationship attributes turned out to be fundamental. Without the right representation, even a strong model will produce output that is well-formed and structurally misleading. No prompt fixes a wrong shape.
+
+### Traceability is part of correctness
+
+In enterprise AI, a plausible output without evidence often isn't good enough. Provenance, explicit validation and human review aren't extras bolted on at the end. They're what let people trust the system's results, and question them when they need to.
+
+<Pull>
+The most valuable engineering work wasn't making the LLM responsible for more. It was drawing the boundaries that let it be reliable inside a larger system.
+</Pull>

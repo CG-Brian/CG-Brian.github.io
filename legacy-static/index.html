@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your Name — Software Engineer</title>
+  <meta name="description" content="Software engineer working across systems and machine learning. Projects, research, and notes.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="masthead wrap">
+    <a class="wordmark" href="#top">Your Name</a>
+    <nav aria-label="Primary">
+      <ul>
+        <li><a href="#map">Map</a></li>
+        <li><a href="#work">Work</a></li>
+        <li><a href="#research">Research</a></li>
+        <li><a href="#about">About</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="intro wrap" id="top">
+      <p class="eyebrow">Software engineer &middot; Systems &amp; machine learning</p>
+      <h1>I build careful software where <em>systems</em> meet <em>learning</em>, and write down what I find along the way.</h1>
+      <dl class="meta">
+        <div><dt>Currently</dt><dd>Engineer at Northwind Labs, working on retrieval infrastructure</dd></div>
+        <div><dt>Based in</dt><dd>Brooklyn, New York</dd></div>
+        <div><dt>Open to</dt><dd>Research collaborations and select consulting</dd></div>
+      </dl>
+    </section>
+
+    <section class="section wrap" id="map" aria-labelledby="map-title">
+      <header class="section-head">
+        <span class="num">01</span>
+        <h2 id="map-title">Map</h2>
+        <p>Each line marks where one idea fed into another: from first principles, through things I&rsquo;ve built, to questions I&rsquo;m still asking.</p>
+      </header>
+
+      <div class="map-body">
+        <figure class="graph" id="graph-figure">
+          <svg id="graph" role="group" aria-label="Network of foundations, projects and research. Use Tab to move between nodes and Enter to select one."></svg>
+          <figcaption class="graph-caption">
+            <span>Hover or tab to trace a node. Click to pin it. Nodes can be dragged.</span>
+            <button class="graph-reset" type="button" hidden>Reset layout</button>
+          </figcaption>
+        </figure>
+
+        <aside class="panel" id="graph-panel" aria-live="polite"></aside>
+      </div>
+    </section>
+
+    <section class="section wrap" id="work" aria-labelledby="work-title">
+      <header class="section-head">
+        <span class="num">02</span>
+        <h2 id="work-title">Selected Work</h2>
+        <p>Things I&rsquo;ve designed and built end to end, mostly small and sharp, a few still running in production.</p>
+      </header>
+
+      <ol class="index">
+        <li class="row" id="work-tessellate">
+          <span class="row-idx">01</span>
+          <h3 class="row-title"><a href="#">Tessellate</a></h3>
+          <p class="row-desc">An embeddable vector index in Rust. Product quantization and a SIMD distance kernel keep a 10M-vector corpus in under 2&nbsp;GB of memory.</p>
+          <p class="row-tags">Rust &middot; ANN &middot; SIMD</p>
+          <p class="row-end"><span>2025</span><button class="xref" type="button" data-select="tessellate">Map</button></p>
+        </li>
+        <li class="row" id="work-murmur">
+          <span class="row-idx">02</span>
+          <h3 class="row-title"><a href="#">Murmur</a></h3>
+          <p class="row-desc">On-device speech-to-intent for low-power hardware. A distilled 18M-parameter model with a 4-bit runtime that answers in 40&nbsp;ms.</p>
+          <p class="row-tags">PyTorch &middot; C++ &middot; Quantization</p>
+          <p class="row-end"><span>2024</span><button class="xref" type="button" data-select="murmur">Map</button></p>
+        </li>
+        <li class="row" id="work-ledger">
+          <span class="row-idx">03</span>
+          <h3 class="row-title"><a href="#">Ledger</a></h3>
+          <p class="row-desc">A local-first sync engine built on delta-state CRDTs. Offline edits merge deterministically, with no central server needed to resolve conflicts.</p>
+          <p class="row-tags">TypeScript &middot; CRDTs &middot; WebRTC</p>
+          <p class="row-end"><span>2024</span><button class="xref" type="button" data-select="ledger">Map</button></p>
+        </li>
+        <li class="row" id="work-quill">
+          <span class="row-idx">04</span>
+          <h3 class="row-title"><a href="#">Quill</a></h3>
+          <p class="row-desc">A small typesetting language that compiles to PDF. It has a hand-written parser, incremental re-layout, and a Knuth&ndash;Plass line breaker.</p>
+          <p class="row-tags">OCaml &middot; Compilers &middot; Typography</p>
+          <p class="row-end"><span>2023</span><button class="xref" type="button" data-select="quill">Map</button></p>
+        </li>
+        <li class="row" id="work-atlas">
+          <span class="row-idx">05</span>
+          <h3 class="row-title"><a href="#">Atlas</a></h3>
+          <p class="row-desc">A streaming geospatial tile server that renders vector tiles from live sensor feeds for a city transit authority.</p>
+          <p class="row-tags">Go &middot; PostGIS &middot; Kafka</p>
+          <p class="row-end"><span>2022</span><button class="xref" type="button" data-select="atlas">Map</button></p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="section wrap" id="research" aria-labelledby="research-title">
+      <header class="section-head">
+        <span class="num">03</span>
+        <h2 id="research-title">Research &amp; Writing</h2>
+        <p>Papers, preprints, and longer notes. These are usually the questions a project left open.</p>
+      </header>
+
+      <ol class="index index--research">
+        <li class="row" id="research-sparse">
+          <span class="row-idx">R1</span>
+          <h3 class="row-title"><a href="#">Sparse Retrieval Heads in Small Language Models</a></h3>
+          <p class="row-desc">Evidence that a handful of attention heads do most of the lookup work in sub-1B models, and what pruning them reveals.</p>
+          <p class="row-tags">Preprint &middot; arXiv</p>
+          <p class="row-end"><span>2025</span><button class="xref" type="button" data-select="sparse">Map</button></p>
+        </li>
+        <li class="row" id="research-quant">
+          <span class="row-idx">R2</span>
+          <h3 class="row-title"><a href="#">Error Budgets for 4-bit Inference</a></h3>
+          <p class="row-desc">A practical framework for allocating quantization error across layers, derived from the Murmur runtime.</p>
+          <p class="row-tags">Technical note</p>
+          <p class="row-end"><span>2025</span><button class="xref" type="button" data-select="quant">Map</button></p>
+        </li>
+        <li class="row" id="research-crdt">
+          <span class="row-idx">R3</span>
+          <h3 class="row-title"><a href="#">Bounded Metadata for Causal CRDTs</a></h3>
+          <p class="row-desc">Keeping causal-context metadata from growing without bound under partial replication. With co-authors.</p>
+          <p class="row-tags">Workshop &middot; PaPoC</p>
+          <p class="row-end"><span>2024</span><button class="xref" type="button" data-select="crdt">Map</button></p>
+        </li>
+        <li class="row" id="research-layout">
+          <span class="row-idx">R4</span>
+          <h3 class="row-title"><a href="#">Incremental Layout as a Dataflow Problem</a></h3>
+          <p class="row-desc">An essay on treating document layout as a self-adjusting computation, and where that framing breaks down.</p>
+          <p class="row-tags">Essay</p>
+          <p class="row-end"><span>2023</span><button class="xref" type="button" data-select="layout">Map</button></p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="section wrap" id="about" aria-labelledby="about-title">
+      <header class="section-head">
+        <span class="num">04</span>
+        <h2 id="about-title">About</h2>
+      </header>
+
+      <div class="about">
+        <div class="about-text">
+          <p>I&rsquo;m a software engineer who likes problems that sit between disciplines, where a result from numerical analysis decides whether a distributed system is fast enough, or a compiler technique makes a model small enough to ship.</p>
+          <p>I studied mathematics before moving into engineering, and I still work the same way: understand the foundations, build the smallest thing that tests an idea, then write it down carefully enough that someone else can disagree with it.</p>
+          <p>Outside of work I set type, run long distances slowly, and keep a reading list that is longer than it should be.</p>
+        </div>
+
+        <dl class="cv">
+          <div><dt>2024&ndash;</dt><dd>Senior Engineer, <span>Northwind Labs</span></dd></div>
+          <div><dt>2021&ndash;24</dt><dd>Software Engineer, <span>Fieldnote</span></dd></div>
+          <div><dt>2020</dt><dd>Research Intern, <span>Systems Lab, State University</span></dd></div>
+          <div><dt>2016&ndash;20</dt><dd>B.S. Mathematics, <span>State University</span></dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="section wrap" id="contact" aria-labelledby="contact-title">
+      <header class="section-head">
+        <span class="num">05</span>
+        <h2 id="contact-title">Contact</h2>
+      </header>
+
+      <div class="contact">
+        <a class="contact-mail" href="mailto:hello@yourname.dev">hello@yourname.dev</a>
+        <ul class="contact-links">
+          <li><a href="#">GitHub</a></li>
+          <li><a href="#">Google Scholar</a></li>
+          <li><a href="#">LinkedIn</a></li>
+          <li><a href="#">Curriculum Vitae (PDF)</a></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="colophon wrap">
+    <p>&copy; 2026 Your Name</p>
+    <p>Set in Newsreader &amp; JetBrains Mono. Built by hand, without a framework.</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+<Note>
+StageGround is independent research: completed experiments, committed results and a reproducible pipeline. It is not a peer-reviewed publication, it hasn't been validated by clinicians, and nothing here is meant for clinical use. Example report text on this page is synthetic. The numbers come from the committed study in the [repository](https://github.com/CG-Brian/stage-ground).
+</Note>
+
+## The research question
+
+Here is a small thing that bothered me. Clinical LLMs are usually evaluated by comparing a predicted label against a reference dataset. Ask a model for the TNM stage of a tumour from a pathology report, compare its answer with the cancer registry, and count the matches. Simple, and quietly ambiguous.
+
+The registry knows things the report doesn't. M stage, which records whether cancer has spread to distant sites, is often confirmed by imaging that never appears in a pathology report. So a model can produce the registry's answer without the document in front of it containing any reason to. Conventional accuracy can't tell that apart from genuine extraction. It can't tell the opposite case apart either: a model that sensibly says "the report doesn't say" while the registry holds an answer gets marked wrong.
+
+**Label correctness is not the same as source-grounded correctness.** StageGround is my attempt to measure the gap.
+
+<Pull>
+How do structured outputs, explicit abstention, and mandatory evidence binding affect both label accuracy and source-grounded reliability in clinical TNM extraction?
+</Pull>
+
+The point was never to find the prompt with the highest accuracy. It was to see whether these interventions change the *relationship* between accuracy, evidence and abstention.
+
+## Experimental design
+
+### The data
+
+StageGround uses the public TCGA pathology-report corpus: **9,523 machine-readable reports** joined to clinical metadata for gold T, N and M labels. Label coverage drops target by target. 6,966 reports have T, 5,678 have N, 4,608 have M, and only **3,907** have all three. That drop isn't noise. M in particular often depends on information a pathology report doesn't hold, which is exactly why it turns out to be the interesting target.
+
+The main study takes a deterministic, stratified sample (seed 42) of **1,000 reports** from those 3,907, so every case has all three answers to score against.
+
+Two dataset decisions mattered more than they look:
+
+- **Canonicalization.** Sparse subtypes are folded into their major category, so `T3a` becomes `T3` and `N2c` becomes `N2`. This is applied identically to predictions and registry labels; otherwise you're scoring noise from categories with single-digit counts.
+- **`TX` is not `unknown`.** `TX`, `NX` and `MX` are registry values meaning "assessed, indeterminate". `unknown` is a *model behaviour*: declining to assert anything. Merge them and you erase the very distinction the abstention analysis depends on.
+
+### Four arms, one intervention at a time
+
+Every arm uses the same GPT-4o configuration, the same output shape and the same 1,000 reports, and predicts T, N and M for each. Only the prompting intervention changes, and each arm adds exactly one thing to the one before.
+
+<Figure caption="A → C → C+ → D is one progressive intervention, not four unrelated prompts. C technically allows “unknown”, but only C+ and D explicitly encourage it.">
+  <ArmProgression />
+</Figure>
+
+That progression is the experiment. Comparing C with C+ isolates abstention. Comparing C+ with D isolates evidence binding. And because every arm sees identical reports, each comparison can use **paired** statistics instead of hoping two samples happen to be alike.
+
+### From pilot to main study
+
+It didn't start this tidy. A 200-report pilot compared zero-shot, few-shot, allowed-values and schema-guided prompts. It surfaced the first interesting pattern: an allowed-values constraint produced outputs that were perfectly well-formed and still confidently unsupported. But the pilot's arms bundled several interventions together, so I couldn't say *which* one was doing the work.
+
+So I redesigned it. The main study grew to 1,000 paired reports, and I introduced the **C+** arm specifically to pull abstention apart from evidence requirements. All five qualitative patterns tracked from the pilot held at five times the sample size, now with confidence intervals tight enough to mean something. The pilot's numbers belong to the pilot, though; everything quoted below is from the main study.
+
+<Pull>
+A good pilot doesn't have to be the final experiment. Its job is to show you what you can't yet tell apart.
+</Pull>
+
+## Evaluating evidence
+
+StageGround deliberately refuses to collapse reliability into one score. It asks four separate questions:
+
+1. **Label accuracy.** Does the prediction match the registry? Useful, but silent on whether the report justified it.
+2. **Span grounding.** Does the cited evidence actually appear in the report? This is checked by text matching that tolerates common OCR noise.
+3. **Semantic support.** Does that evidence actually support the predicted stage? This is a conservative, rule-based heuristic. It never stages cancer itself; it only asks whether the model's *own* quote plausibly backs the model's *own* answer.
+4. **Abstention and coverage.** How often does the model decline to answer? Abstaining is good when the report is silent and bad when it isn't.
+
+The headline grounded metric, **semantic-supported accuracy**, requires all three conditions at once: correct against the registry, quote found in the report, and quote judged to support the label. It's an automated proxy, not a clinical measure of truth, and I'll keep saying so.
+
+<Figure caption="Illustrative cases with synthetic text. Accuracy alone treats cases 1 and 2 identically, and treats case 4 like any other miss.">
+  <EvidenceInspection />
+</Figure>
+
+One design decision I'd defend at length: span grounding and semantic support are stored as **two separate fields**, never one ambiguous `grounded` flag. A quote can be perfectly genuine and still have nothing to do with the claim.
+
+### When the evaluator is the one that's wrong
+
+Pathology reports are OCR'd documents, full of stray punctuation and odd line breaks. While auditing the pilot, some predictions that looked unsupported turned out to quote exactly the right passage. A strict substring check had failed on a period that OCR had dropped mid-phrase. So the matcher learned to tolerate that noise.
+
+Fixing that exposed the deeper problem. Once you can reliably tell that a quote *exists*, you still don't know whether it *supports* anything. That realisation is where the separate semantic-support field came from.
+
+<Pull>
+A proxy metric can fail in ways that look exactly like model failures. The evaluator needs error analysis too.
+</Pull>
+
+## Findings
+
+All figures below are pooled across T, N and M from the committed 1,000-case run.
+
+<Figure caption="Pooled across T, N and M; 1,000 reports per arm. These metrics answer different questions, so they don't add up to anything and shouldn't be combined.">
+  <MetricExplorer />
+</Figure>
+
+**Accuracy and grounding rank the arms differently.** The Constrained arm wins on raw accuracy (70.2%). The Grounded arm wins on both grounding metrics: the highest semantic-supported accuracy (31.1%) and the lowest semantic-unsupported rate (40.4%). No arm wins everything, and that's the finding. A schema can keep outputs inside the allowed labels; it can't make the report say what the model claimed.
+
+**Abstention alone isn't a free improvement.** Moving from C to C+ cut unsupported assertions, but it also lowered raw accuracy *and* semantic-supported accuracy. C+ gave up more correct-but-unsupported answers than it gained in genuinely supported ones, and the effect wasn't uniform across targets.
+
+**Evidence binding adds something abstention doesn't.** From C+ to D, the semantic-unsupported rate fell by **3.53 points** and semantic-supported accuracy rose by **3.63 points**, while coverage *rose* by 2.53 points. D isn't just abstaining its way to a better score. Requiring evidence made a measurable difference of its own.
+
+<Figure caption="Paired bootstrap, 5,000 resamples over the same cases. Each dot is the observed difference in percentage points; the bar is its 95% interval. Grey intervals cross zero.">
+  <PairedDeltas />
+</Figure>
+
+Split by target, the story gets more honest. T and N accuracy are nearly flat across arms; almost all of the accuracy movement comes from M. D's overall accuracy cost relative to C (−7.9 points) sits almost entirely in M-stage predictions, which, as the next section shows, were rarely source-supported to begin with.
+
+A word on uncertainty. The intervals describe the range of each effect under this bootstrap, for this model, this dataset and this heuristic. With one generative model, these are careful statements about one configuration, not universal laws about clinical LLMs.
+
+## The M0 paradox
+
+This is the result I keep thinking about.
+
+<Figure caption="M0 rows are predictions labelled M0, scored against the registry. Semantic support is judged by the automated heuristic, not by clinicians.">
+  <M0Paradox />
+</Figure>
+
+In every arm, predictions of M0 (no distant metastasis) matched the registry about **99%** of the time. Impressive, until you notice that the evidence the model cited for those same predictions semantically supported M0 only **2–4%** of the time.
+
+The base rate explains much of it. In this cohort, **94.7%** of gold M labels are M0, so an M0 prediction is right most of the time regardless of what the report says. The near-perfect accuracy is entirely consistent with that prior, and doesn't require any report-specific reasoning.
+
+What I *can't* claim is that the model was guessing. The gap is also consistent with information the registry has and the report lacks, implicit evidence the heuristic doesn't recognise, model priors, or the prompts themselves. None of those mechanisms was causally isolated. There's also a hard boundary underneath: M0 is usually established by imaging, and a model that only reads the pathology report can't be expected to recover facts that were never written in it.
+
+That 99% is accuracy *among M0 predictions*. Overall M-stage accuracy was much lower, between 25% and 48% depending on the arm.
+
+<Pull>
+A highly accurate classifier can still be an unreliable evidence extractor when the reference label knows more than the source does.
+</Pull>
+
+## Research engineering
+
+StageGround isn't just a folder of prompts and plots. A good share of the work was making the experiment trustworthy *as software*.
+
+<Figure caption="From raw reports to replay. Each run writes its own self-contained directory.">
+  <ResearchPipeline />
+</Figure>
+
+**One definition per arm.** Arms are defined once, in a central configuration that drives prompt construction, evidence requirements, abstention behaviour and metadata. That avoids `if arm == "D"` strings scattered through the evaluation code, which is how experiments quietly drift away from their own descriptions.
+
+**Requested vs. effective configuration.** Every run records both the model settings it *asked* for and the ones actually *used*, because providers sometimes reject parameters without saying so. For the main study the two matched: GPT-4o, no temperature override, three retries, JSON output.
+
+**Surviving a long run.** The main experiment is 4,000 report-arm calls producing 12,000 prediction records. The runner uses controlled concurrency and writes a checkpoint as it goes. It can resume after an interruption, laptop sleep included, and skips completed case-arm pairs. Rate limits get retried, while an exhausted quota stops the run with a clear message instead of retrying forever. The committed run finished with zero malformed extractions and zero duplicate records.
+
+**Analysis without re-inference.** Raw predictions are stored, so metrics, intervals, tables and figures can all be regenerated without calling the model again.
+
+**Failures with names.** Predictions are tagged with an error taxonomy: hallucinated stage, evidence not found, evidence that doesn't support the claim, missed explicit stage, over-abstention, invalid normalization, invalid schema output. A prediction can carry several tags at once. A single failure rate can't tell you whether to fix the schema, the quoting, the reasoning or the coverage. Named failure modes can.
+
+The [interactive research replay](https://web-plum-one-77.vercel.app) is the visible end of that pipeline. It steps through real committed predictions, showing the same report under all four arms side by side with their evidence and grounding judgements, without running anything live.
+
+<Pull>
+Research reproducibility is a software engineering problem as much as a statistical one.
+</Pull>
+
+## External validation & limitations
+
+### Auditing the auditor
+
+The semantic-support heuristic makes claims about reliability, so it needs checking too. The repository includes tooling for a **blinded** audit. Reviewers see each prediction and its evidence, but never the arm, the case ID or the automated judgement, and by default not the registry answer either, so nobody is anchored.
+
+So far there is one 80-case audit, and it is **model-assisted and provisional**: a different LLM reviewed the heuristic's calls, not an independent human. Run against an earlier, literal-token version of the heuristic, it suggested the expanded version recovers more genuine support (recall rose from about 0.53 to about 0.71) without new false positives (precision stayed at 1.0). That's directional evidence and nothing more. Independent human adjudication remains future work.
+
+### An external baseline: BB-TEN
+
+[BB-TEN](https://github.com/tatonetti-lab/tnm-stage-classifier) is a published Clinical-BigBird classifier trained to stage TCGA pathology reports. It isn't a fifth arm; it's a different kind of system. To compare fairly, I used only the leak-free overlap between my sample and BB-TEN's official held-out test split, giving 143, 145 and 162 cases for T, N and M, scored on identical IDs and labels.
+
+<Figure caption="M stage on the matched subset. The other T and N comparisons were statistically indistinguishable.">
+  <BbtenComparison />
+</Figure>
+
+On M, BB-TEN's 90.7% accuracy looks like a landslide until you check the class balance: 150 M0 cases against 12 M1. Its balanced accuracy is 0.528 and its M1 recall is 8.3%, meaning one of twelve. The same base-rate effect shows up in a completely different model family. Because BB-TEN emits no evidence, it says nothing about grounding either way, and I don't claim StageGround beats it.
+
+### Limitations
+
+- **One generative model.** The main experiment uses GPT-4o; other models may behave differently.
+- **A heuristic judge.** Semantic support comes from conservative rules, not case-by-case confirmation.
+- **A provisional audit.** The 80-case audit was model-assisted, not an independent human or clinician review.
+- **One corpus.** Everything is TCGA pathology reports; other institutions' formatting and OCR could change things.
+- **Incomplete sources.** Registry M labels can depend on evidence no pathology report contains.
+- **A limited baseline.** The BB-TEN comparisons use smaller matched subsets and can't measure grounding.
+
+Natural next steps would be an independent blinded human audit, a second-model replication, a sturdier semantic-support evaluator, other pathology corpora, explicit source-sufficiency annotations, and a closer look at abstention as selective prediction. These are directions, not results.
+
+## Research reflections
+
+### What "good" means depends on the target
+
+A model can score well against the registry while behaving poorly as an extractor limited to its source. Choosing a metric quietly encodes an assumption about what the system is supposed to know. When a system is expected to justify its answer from a specific document, a correct label isn't enough.
+
+### Change one thing at a time
+
+In the pilot, constraints, examples and abstention were tangled together, and each seemed to help. Only the paired, one-step-at-a-time redesign could say which mechanism actually explained what. Good evaluation changes one thing and asks what moved.
+
+### Be as critical of the evaluator as of the model
+
+A quote appearing in a report doesn't prove it supports the stage, and even semantic support is only a proxy. The OCR episode taught me that evaluation tooling fails too, and sometimes it fails in a way that looks exactly like the model failing.
+
+### Suspiciously good results deserve suspicion
+
+The M0 paradox made a habit of something I used to do occasionally. When a model does surprisingly well, I now check whether it learned the source-specific task or is simply benefiting from the distribution of labels.
+
+### Make the conclusions inspectable
+
+Saved predictions, recorded parameters, repeatable analysis and limitations you can actually see are what turn a result into something another person can check. An experiment is more useful when someone else can see exactly how its conclusions were produced.
+
+<Pull>
+For evidence-sensitive tasks, judging the answer alone can mislead. You also have to ask whether the evidence supports it.
+</Pull>
+
+Everything here is open: the [repository](https://github.com/CG-Brian/stage-ground), the [methods](https://github.com/CG-Brian/stage-ground/blob/main/docs/methods.md) and [evaluation](https://github.com/CG-Brian/stage-ground/blob/main/docs/evaluation.md) write-ups, and the [interactive research replay](https://web-plum-one-77.vercel.app).
