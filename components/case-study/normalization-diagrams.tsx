@@ -181,7 +181,7 @@ const sheet = [
 
 export function ProvenanceTrace() {
   return (
-    <div className="grid gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-center lg:gap-12">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-center lg:gap-12">
       <div>
         <PanelLabel>Sheet2 &middot; reference dataset</PanelLabel>
         <div className="mt-4 overflow-x-auto">
@@ -358,5 +358,422 @@ export function OutcomeLedger() {
         missing. A partial result, with the gaps labelled.
       </p>
     </div>
+  );
+}
+
+/* ------------------------------------------- parser: synthetic C&E workbook */
+
+type Cell = { v?: string; colSpan?: number; rowSpan?: number; kind?: "header" | "merged" | "hit" | "struck" };
+
+// A synthetic Cause & Effect sheet: two header rows over the effects, a vertically merged
+// description and voting group, one struck-through (inactive) cause.
+const sheetRows: { n: number; cells: Cell[] }[] = [
+  { n: 1, cells: [{ v: "CAUSES", colSpan: 3, kind: "header" }, { v: "EFFECTS", colSpan: 4, kind: "header" }] },
+  {
+    n: 2,
+    cells: [
+      { v: "TAG", kind: "header" },
+      { v: "DESCRIPTION", kind: "header" },
+      { v: "VOTING", kind: "header" },
+      { v: "XV-201", kind: "header" },
+      { v: "P-101", kind: "header" },
+      { v: "ALM-1", kind: "header" },
+      { v: "FAN-3", kind: "header" },
+    ],
+  },
+  {
+    n: 3,
+    cells: [
+      { v: "", colSpan: 3 },
+      { v: "Close valve", kind: "header" },
+      { v: "Stop pump", kind: "header" },
+      { v: "Alarm", kind: "header" },
+      { v: "Start fan", kind: "header" },
+    ],
+  },
+  { n: 4, cells: [{ v: "TT-101" }, { v: "Temp. high" }, { v: "1oo1" }, { v: "C", kind: "hit" }, { v: "S", kind: "hit" }, { v: "X", kind: "hit" }, { v: "" }] },
+  {
+    n: 5,
+    cells: [
+      { v: "PT-201" },
+      { v: "Pressure high", rowSpan: 2, kind: "merged" },
+      { v: "2oo3", rowSpan: 2, kind: "merged" },
+      { v: "C", kind: "hit" },
+      { v: "" },
+      { v: "X", kind: "hit" },
+      { v: "" },
+    ],
+  },
+  { n: 6, cells: [{ v: "PT-202" }, { v: "C", kind: "hit" }, { v: "" }, { v: "X", kind: "hit" }, { v: "" }] },
+  { n: 7, cells: [{ v: "LS-301", kind: "struck" }, { v: "Level low", kind: "struck" }, { v: "1oo1", kind: "struck" }, { v: "", kind: "struck" }, { v: "S", kind: "struck" }, { v: "", kind: "struck" }, { v: "", kind: "struck" }] },
+  { n: 8, cells: [{ v: "FS-401" }, { v: "Flow low" }, { v: "1oo1" }, { v: "" }, { v: "S 5s", kind: "hit" }, { v: "X", kind: "hit" }, { v: "S", kind: "hit" }] },
+];
+
+const cellClass: Record<NonNullable<Cell["kind"]> | "plain", string> = {
+  header: "bg-border/30 text-ink",
+  merged: "outline outline-1 -outline-offset-2 outline-dashed outline-secondary/70 text-ink",
+  hit: "bg-accent/10 text-accent",
+  struck: "text-secondary line-through decoration-secondary/60",
+  plain: "text-ink",
+};
+
+export function ParserDiagram() {
+  return (
+    <div>
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:gap-10">
+        <div>
+          <PanelLabel>Synthetic Cause &amp; Effect sheet</PanelLabel>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[480px] border-collapse font-mono text-[11px]">
+              <caption className="sr-only">
+                Synthetic Cause and Effect matrix with merged headers, a merged voting group, a struck-through cause and
+                actions at row-column intersections.
+              </caption>
+              <thead>
+                <tr className="text-secondary">
+                  <td className="w-6" />
+                  {["A", "B", "C", "D", "E", "F", "G"].map((c) => (
+                    <th key={c} scope="col" className="border-b border-border px-2 py-1 text-left font-normal">
+                      {c}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sheetRows.map((r) => (
+                  <tr key={r.n}>
+                    <th scope="row" className="pr-2 text-left font-normal text-secondary">
+                      {r.n}
+                    </th>
+                    {r.cells.map((c, i) => (
+                      <td
+                        key={i}
+                        colSpan={c.colSpan}
+                        rowSpan={c.rowSpan}
+                        className={cn("border border-border px-2 py-1.5 whitespace-nowrap", cellClass[c.kind ?? "plain"])}
+                      >
+                        {c.v}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[10px] text-secondary">
+            <span>
+              <span className="mr-1.5 inline-block size-2.5 align-middle outline outline-1 outline-dashed outline-secondary" />
+              merged range: value only in its anchor cell
+            </span>
+            <span>
+              <span className="mr-1.5 inline-block size-2.5 bg-accent/30 align-middle" />
+              intersection = relationship
+            </span>
+            <span className="line-through">struck-through: inactive</span>
+          </p>
+        </div>
+
+        <div>
+          <PanelLabel>One structured raw rule</PanelLabel>
+          <pre className="mt-3 overflow-x-auto rounded-[3px] border border-border px-4 py-3 font-mono text-[11.5px] leading-[1.7] text-secondary">
+            <code>
+              {"{\n"}
+              {"  "}<span className="text-ink">&quot;cause&quot;</span>: {"{ "}tag: <span className="text-ink">&quot;PT-202&quot;</span>, row: <span className="text-accent">6</span>{" },\n"}
+              {"  "}<span className="text-ink">&quot;effect&quot;</span>: {"{ "}tag: <span className="text-ink">&quot;XV-201&quot;</span>, col: <span className="text-accent">&quot;D&quot;</span>{" },\n"}
+              {"  "}<span className="text-ink">&quot;cell&quot;</span>: <span className="text-accent">&quot;D6&quot;</span>, raw: <span className="text-ink">&quot;C&quot;</span>,{"\n"}
+              {"  "}<span className="text-ink">&quot;description&quot;</span>: <span className="text-ink">&quot;Pressure high&quot;</span>, from: <span className="text-accent">&quot;B5&quot;</span>,{"\n"}
+              {"  "}<span className="text-ink">&quot;voting&quot;</span>: <span className="text-ink">&quot;2oo3&quot;</span>, from: <span className="text-accent">&quot;C5&quot;</span>{"\n"}
+              {"}"}
+            </code>
+          </pre>
+          <p className="mt-3 text-sm leading-relaxed text-secondary">
+            Row 6 has no description or voting value of its own. Both resolve from the merge anchors in row 5, and the
+            rule keeps the original coordinates.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-10 border-t border-border pt-6">
+        <Pipeline
+          label="Parse"
+          steps={[
+            { label: "ExcelJS workbook", note: "sheets, rows, cells, merges" },
+            { label: "Coordinate-aware parser", tone: "accent", note: "confirmed read settings" },
+            { label: "Structured raw rules", note: "with source coordinates" },
+          ]}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------------------- zip() vs coordinate-based mapping */
+
+const zipHeaders = ["TAG", "DESCRIPTION", "VOTING", "XV-201"];
+
+export function CoordinateMapping() {
+  const zipped = ["PT-202", "C", "—", "—"];
+  const coords = [
+    { v: "PT-202", from: "A6" },
+    { v: "Pressure high", from: "B5 · merge anchor" },
+    { v: "2oo3", from: "C5 · merge anchor" },
+    { v: "C", from: "D6" },
+  ];
+  return (
+    <div className="grid gap-10 lg:grid-cols-2 lg:gap-0">
+      <section className="lg:border-r lg:border-border lg:pr-8">
+        <PanelLabel>Before · filter blanks, then zip with headers</PanelLabel>
+        <p className="mt-3 font-mono text-[11px] text-secondary">row 6 non-empty cells → [&quot;PT-202&quot;, &quot;C&quot;]</p>
+        <ul className="mt-3 space-y-1.5">
+          {zipHeaders.map((h, i) => (
+            <li key={h} className="flex items-baseline justify-between gap-3 border-b border-border pb-1.5 text-[13px]">
+              <span className="font-mono text-[11px] text-secondary">{h}</span>
+              <span className={cn("font-mono text-[12px]", i > 1 ? "text-secondary" : "text-ink")}>
+                <span className={i === 1 ? "underline decoration-dotted underline-offset-2" : undefined}>{zipped[i]}</span>
+                {i === 1 && <span className="ml-2 text-[10px] text-secondary">an action landed in the description</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <section className="lg:pl-8">
+        <PanelLabel className="text-accent">After · map by original coordinates</PanelLabel>
+        <p className="mt-3 font-mono text-[11px] text-secondary">each header owns a column; merges resolve to their anchor</p>
+        <ul className="mt-3 space-y-1.5">
+          {zipHeaders.map((h, i) => (
+            <li key={h} className="flex items-baseline justify-between gap-3 border-b border-border pb-1.5 text-[13px]">
+              <span className="font-mono text-[11px] text-secondary">{h}</span>
+              <span className="font-mono text-[12px] text-ink">
+                {coords[i].v} <span className="ml-1 text-[10px] text-accent">{coords[i].from}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
+  );
+}
+
+/* ---------------------------------------------- read-settings inference */
+
+const signals = ["Used range & dimensions", "Merged-cell structure", "TAG / DESCRIPTION terms", "Field-name patterns", "Cause & Effect axes", "Matrix intersections", "IO-list layout"];
+
+const suggested = [
+  { key: "cause header rows", value: "2–3" },
+  { key: "tag column", value: "A" },
+  { key: "description column", value: "B" },
+  { key: "effect tag row", value: "2" },
+  { key: "matrix region", value: "D4:G8" },
+  { key: "voting column", value: "C", review: true },
+];
+
+export function ReadSettingsInference() {
+  return (
+    <div className="space-y-10">
+      <Pipeline
+        label="Flow"
+        steps={[
+          { label: "Heterogeneous sheet" },
+          { label: "Candidate detection", note: "heuristics, LLM for ambiguity" },
+          { label: "Suggested settings", tone: "accent" },
+          { label: "Human confirmation", note: "preview, correct" },
+          { label: "Deterministic parser" },
+        ]}
+      />
+      <div className="grid gap-8 border-t border-border pt-6 lg:grid-cols-2 lg:gap-10">
+        <div>
+          <PanelLabel>Signals considered</PanelLabel>
+          <ul className="mt-3 flex flex-wrap gap-1.5">
+            {signals.map((s) => (
+              <li key={s}>
+                <Chip className="py-0.5 text-[11px]">{s}</Chip>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <PanelLabel>Suggested read settings (synthetic)</PanelLabel>
+          <dl className="mt-3 font-mono text-[12px]">
+            {suggested.map((s) => (
+              <div key={s.key} className="flex items-baseline justify-between gap-3 border-b border-border py-1.5">
+                <dt className="text-secondary">{s.key}</dt>
+                <dd className={s.review ? "text-accent" : "text-ink"}>
+                  {s.value}
+                  {s.review && <span className="ml-2 text-[10px]">ambiguous · confirm</span>}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------------------------------- error analysis */
+
+const fields = ["Cause identity", "Effect identity", "IO type", "Action", "Delay time", "Voting", "Relationship presence"];
+
+const failures = [
+  { kind: "RESET propagated to every rule of a cause", fix: "Kept only where the source states it explicitly" },
+  { kind: "Tag written as “PT 202”, “PT_202” and “PT-202”", fix: "One normalized identifier, original text kept" },
+  { kind: "Relationship inferred with no mark at the intersection", fix: "No rule emitted; missing stays missing" },
+];
+
+export function ErrorAnalysis() {
+  return (
+    <div className="space-y-10">
+      <Pipeline
+        label="Loop"
+        steps={[
+          { label: "Model output" },
+          { label: "Field-level comparison", note: "against reference records" },
+          { label: "Error classification", tone: "accent", note: "by field and convention" },
+          { label: "Targeted correction", note: "instructions, schema, rules" },
+          { label: "Re-evaluation" },
+        ]}
+      />
+      <div className="border-t border-border pt-6">
+        <PanelLabel>Compared field by field</PanelLabel>
+        <ul className="mt-3 flex flex-wrap gap-1.5">
+          {fields.map((f) => (
+            <li key={f}>
+              <Chip className="py-0.5 text-[11px]">{f}</Chip>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="border-t border-border pt-6">
+        <PanelLabel>Illustrative failure modes (synthetic)</PanelLabel>
+        <ul className="mt-3">
+          {failures.map((f) => (
+            <li key={f.kind} className="grid gap-1 border-b border-border py-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-4">
+              <span className="text-sm text-ink/85">{f.kind}</span>
+              <span aria-hidden className="hidden font-mono text-secondary sm:block">&rarr;</span>
+              <span className="text-sm text-accent">{f.fix}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------- TrackedValueDTO trace */
+
+function MiniSheet({ title, cells, hit }: { title: string; cells: [string, string][]; hit: string }) {
+  return (
+    <div>
+      <p className="font-mono text-[10px] text-secondary">{title}</p>
+      <dl className="mt-1.5 font-mono text-[11px]">
+        {cells.map(([addr, v]) => (
+          <div
+            key={addr}
+            className={cn(
+              "flex justify-between gap-3 border-b border-border px-2 py-1",
+              addr === hit && "bg-accent/10 text-accent outline outline-1 -outline-offset-1 outline-accent/60",
+            )}
+          >
+            <dt className={addr === hit ? "text-accent" : "text-secondary"}>{addr}</dt>
+            <dd className={addr === hit ? "text-accent" : "text-ink"}>{v}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+export function TrackedValueTrace() {
+  return (
+    <div>
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.15fr)_minmax(0,0.95fr)] lg:gap-8">
+        <section className="space-y-5">
+          <PanelLabel>1 · Sources</PanelLabel>
+          <MiniSheet title="IO list" cells={[["IO!B18", "PT-202"], ["IO!D18", "DI"], ["IO!E18", "Panel 2"]]} hit="IO!D18" />
+          <MiniSheet title="C&E matrix" cells={[["C&E!A6", "PT-202"], ["C&E!K6", "AI"]]} hit="C&E!K6" />
+        </section>
+
+        <section>
+          {/* Not a PanelLabel: the type name must keep its casing. */}
+          <p className="font-mono text-[11px] tracking-[0.06em] text-accent">
+            <span className="uppercase">2 · </span>TrackedValueDTO
+          </p>
+          <pre className="mt-3 overflow-x-auto rounded-[3px] border border-border px-4 py-3 font-mono text-[11.5px] leading-[1.7] text-secondary">
+            <code>
+              {"io_type: {\n"}
+              {"  "}value: <span className="text-ink">&quot;DI&quot;</span>,{"\n"}
+              {"  "}source: <span className="text-ink">&quot;IO_LIST&quot;</span>,{"\n"}
+              {"  "}source_cells: [<span className="text-accent">&quot;IO!D18&quot;</span>],{"\n"}
+              {"  "}conflict: {"{\n"}
+              {"    "}alternatives: [{"{\n"}
+              {"      "}value: <span className="text-ink">&quot;AI&quot;</span>, source: <span className="text-ink">&quot;CNE&quot;</span>,{"\n"}
+              {"      "}source_cells: [<span className="text-accent">&quot;C&E!K6&quot;</span>]{"\n"}
+              {"    }],\n"}
+              {"    "}rule: <span className="text-ink">&quot;IO list wins for signal type&quot;</span>{"\n"}
+              {"  }\n}"}
+            </code>
+          </pre>
+        </section>
+
+        <section>
+          <PanelLabel>3 · Review interface</PanelLabel>
+          <div className="mt-3 rounded-[3px] border border-border">
+            <div className="flex items-baseline justify-between border-b border-border px-3 py-2">
+              <span className="text-[13px] text-ink">PT-202 · IO type</span>
+              <span className="font-mono text-[12px] text-ink">DI</span>
+            </div>
+            <div className="space-y-1.5 px-3 py-2.5 text-xs">
+              <p className="flex justify-between gap-2">
+                <span className="text-secondary">source</span>
+                <span className="font-mono text-ink">IO list · D18</span>
+              </p>
+              <p className="flex justify-between gap-2">
+                <span className="text-secondary">conflict</span>
+                <span className="font-mono text-accent">1 alternative (AI, C&amp;E K6)</span>
+              </p>
+              <p className="pt-1 font-mono text-[11px] text-accent">Show in sheet &rarr; highlights D18</p>
+            </div>
+          </div>
+          <p className="mt-3 text-xs leading-relaxed text-secondary">
+            Rows and columns use the rule&rsquo;s anchors; field highlights use source cells only where they&rsquo;re
+            reliable.
+          </p>
+        </section>
+      </div>
+
+      <div className="mt-8 border-t border-border pt-5">
+        <PanelLabel>Three different levels of “this cell supports it”</PanelLabel>
+        <ol className="mt-3 grid gap-3 sm:grid-cols-3">
+          {[
+            ["Valid address", "“K6” is well-formed A1 notation."],
+            ["Existing cell", "K6 exists in that sheet’s used range."],
+            ["Supporting cell", "K6 actually holds the value being asserted."],
+          ].map(([k, v], i) => (
+            <li key={k} className="border-l border-border pl-3">
+              <p className="font-mono text-[11px] text-ink">
+                <span className="text-accent">{i + 1}</span> {k}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-secondary">{v}</p>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+export function TraceFlow() {
+  return (
+    <Pipeline
+      label="Across services"
+      steps={[
+        { label: "Frontend workbook", note: "ExcelJS JSON" },
+        { label: "Backend transport", note: "state, jobs, storage" },
+        { label: "FastAPI parse & normalize", tone: "accent" },
+        { label: "Tracked values", tone: "accent" },
+        { label: "Backend response" },
+        { label: "Frontend review", note: "source highlighting" },
+      ]}
+    />
   );
 }

@@ -95,7 +95,18 @@ export function HybridArchitecture() {
 type Side = { title: string; pros: string[]; cons: string[] };
 
 /** Two options side by side, with the one we chose marked. */
-export function Tradeoff({ left, right, chosen = "left" }: { left: Side; right: Side; chosen?: "left" | "right" }) {
+export function Tradeoff({
+  left,
+  right,
+  chosen = "left",
+  chosenLabel = "Chosen",
+}: {
+  left: Side;
+  right: Side;
+  chosen?: "left" | "right";
+  /** e.g. "Preferred" for a design direction that was prototyped rather than shipped. */
+  chosenLabel?: string;
+}) {
   return (
     <div className="my-10 grid gap-8 border-y border-border py-6 sm:grid-cols-2 sm:gap-10">
       {([left, right] as const).map((side, i) => {
@@ -103,7 +114,7 @@ export function Tradeoff({ left, right, chosen = "left" }: { left: Side; right: 
         return (
           <div key={side.title}>
             <p className={cn("font-mono text-[11px] uppercase tracking-[0.06em]", isChosen ? "text-accent" : "text-secondary")}>
-              {isChosen ? "Chosen" : "Considered"}
+              {isChosen ? chosenLabel : "Considered"}
             </p>
             <p className="mt-1 text-base font-medium">{side.title}</p>
             <ul className="mt-3 space-y-1.5 text-sm leading-relaxed">
@@ -545,5 +556,216 @@ export function QualifiedFacts() {
         </li>
       ))}
     </ul>
+  );
+}
+
+/* ------------------------------------------------------------- at a glance */
+
+const glance = [
+  { label: "My role", value: "AI agent and backend feature ownership" },
+  { label: "Core areas", value: "Conversational AI · Retrieval · Diagnostic algorithms · Backend integration" },
+  { label: "Original proposal", value: "Dynamic FM Guidance: symptom-driven guided troubleshooting" },
+  { label: "Engineering focus", value: "Grounding · Determinism · Reliability" },
+];
+
+type GlanceItem = { label: string; value: string; accent?: boolean };
+
+/** Ten-second summary under the hero. Defaults to the troubleshooting case study's items. */
+export function AtAGlance({ items }: { items?: GlanceItem[] }) {
+  const list: GlanceItem[] = items ?? glance.map((g, i) => ({ ...g, accent: i === 2 }));
+  return (
+    <dl
+      className="grid gap-6 sm:grid-cols-2 lg:grid-cols-[repeat(var(--n),minmax(0,1fr))] lg:gap-0"
+      style={{ "--n": list.length } as React.CSSProperties}
+    >
+      {list.map((g, i) => (
+        <div key={g.label} className={cn("lg:px-6", i > 0 && "lg:border-l lg:border-border", i === 0 && "lg:pl-0")}>
+          <dt className={cn("font-mono text-[11px] uppercase tracking-[0.06em]", g.accent ? "text-accent" : "text-secondary")}>
+            {g.label}
+          </dt>
+          <dd className="mt-2 text-[15px] leading-snug text-ink">{g.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/* ------------------------------------------------- per-feature story brief */
+
+type Brief = {
+  problem: string;
+  contribution: string;
+  /** Optional "why this approach" row. */
+  decision?: string;
+  outcome: string;
+  /** Label for the last row, e.g. "Outcome / trade-off". */
+  outcomeLabel?: string;
+  status?: string;
+};
+
+/** Problem → my contribution → (decision) → outcome, in the same shape for every feature. */
+export function StoryBrief({ problem, contribution, decision, outcome, outcomeLabel = "Result", status }: Brief) {
+  const rows: [string, string][] = [
+    ["Problem", problem],
+    ["My contribution", contribution],
+    ...(decision ? [["Technical decision", decision] as [string, string]] : []),
+    [outcomeLabel, outcome],
+  ];
+  return (
+    <div className="my-8 border-y border-border py-5">
+      {status && (
+        <p className="mb-4 inline-block rounded-[3px] border border-dashed border-accent/60 px-2 py-0.5 font-mono text-[11px] text-accent">
+          {status}
+        </p>
+      )}
+      <dl className="space-y-3">
+        {rows.map(([k, v]) => (
+          <div key={k} className="grid gap-1 sm:grid-cols-[9rem_1fr] sm:gap-6">
+            <dt className={cn("font-mono text-[11px] uppercase tracking-[0.06em] sm:pt-0.5", k === "My contribution" ? "text-accent" : "text-secondary")}>
+              {k}
+            </dt>
+            <dd className="text-[15px] leading-relaxed text-ink/85">{v}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+/* --------------------------------------------------- prompt architecture */
+
+const promptLayers = [
+  { name: "Role & scope", scope: "global", does: "Who the assistant is, which domain it serves, what it declines." },
+  { name: "Evidence policy", scope: "global", does: "Use retrieved evidence; never invent equipment details or procedures it doesn't support." },
+  { name: "Intent guidance", scope: "contextual", does: "Different emphasis for explanations, troubleshooting advice and equipment questions." },
+  { name: "Response contract", scope: "global", does: "Required structure: actions, conditions, warnings, concise references." },
+  { name: "Output format & language", scope: "global", does: "Follow the user’s language while keeping technical identifiers intact." },
+];
+
+export function PromptArchitecture() {
+  return (
+    <div>
+      <ol className="relative pl-7 before:absolute before:top-5 before:bottom-5 before:left-[3px] before:w-px before:bg-connection">
+        {promptLayers.map((l, i) => (
+          <li key={l.name} className={cn("relative py-3.5", i > 0 && "border-t border-border")}>
+            <span
+              aria-hidden
+              className={cn(
+                "absolute top-[21px] -left-7 size-[7px] rounded-full border bg-canvas",
+                l.scope === "global" ? "border-accent" : "border-secondary",
+              )}
+            />
+            <div className="grid gap-1 sm:grid-cols-[13rem_6rem_1fr] sm:items-baseline sm:gap-5">
+              <p className="text-[15px] font-medium tracking-[-0.01em]">{l.name}</p>
+              <p className={cn("font-mono text-[10px] uppercase tracking-[0.06em]", l.scope === "global" ? "text-accent" : "text-secondary")}>
+                {l.scope === "global" ? "mandatory" : "contextual"}
+              </p>
+              <p className="text-sm leading-relaxed text-secondary">{l.does}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-4">
+        <Chip tone="accent">Final answer</Chip>
+        <span className="font-mono text-[11px] text-secondary">
+          Step transitions and guided-session state stay with the deterministic workflow, outside the prompt.
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------- contribution ledger */
+
+const ledger = [
+  {
+    kind: "Implemented",
+    tone: "text-ink",
+    items: [
+      "Service-report generation (internal and customer-facing)",
+      "Deterministic troubleshooting scoring, integrated into tree generation",
+      "Two-pass graph construction, fixed in both builder paths",
+      "Retrieval query construction and evidence reuse",
+      "Image relevance filtering after generation, fail-open",
+      "Main-agent prompt architecture and guardrail tuning",
+      "Corrective-action guidance and symptom-check formatting",
+      "Structured diagnostic extraction and path validation",
+      "CI validation and test classification",
+    ],
+  },
+  {
+    kind: "Proposed & prototyped",
+    tone: "text-accent",
+    items: ["Dynamic FM Guidance: confirmed symptoms narrowing and reweighting existing decision trees, presented to the customer"],
+  },
+  {
+    kind: "Validated, with scope",
+    tone: "text-secondary",
+    items: [
+      "Parts extraction on one nine-cause example (10 → 16 entries)",
+      "Guardrail behaviour against 82 labeled cases",
+      "A 269-test snapshot of the repository's deterministic suite",
+      "Symptom-check formatting covered by unit tests",
+    ],
+  },
+];
+
+export function ContributionLedger() {
+  return (
+    <div className="grid gap-8 lg:grid-cols-[1.3fr_1fr_1fr] lg:gap-0">
+      {ledger.map((col, i) => (
+        <section key={col.kind} className={cn("lg:px-6", i > 0 && "lg:border-l lg:border-border", i === 0 && "lg:pl-0")}>
+          <PanelLabel className={col.tone}>{col.kind}</PanelLabel>
+          <ul className="mt-3 space-y-2 text-sm leading-relaxed text-ink/85">
+            {col.items.map((it) => (
+              <li key={it} className="flex gap-2">
+                <span aria-hidden className="mt-[9px] size-[5px] shrink-0 rounded-full border border-secondary" />
+                {it}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------- service reports */
+
+export function ReportFlow() {
+  return (
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,0.9fr)_auto_minmax(0,1fr)] lg:items-center lg:gap-5">
+      <div>
+        <PanelLabel>Inputs</PanelLabel>
+        <ul className="mt-3 flex flex-col items-start gap-1.5">
+          {["Conversation history", "Guided-session records", "Operational context"].map((x) => (
+            <li key={x}>
+              <Chip className="py-0.5 text-[11px]">{x}</Chip>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 text-xs leading-relaxed text-secondary">Fetched through service clients and mapped into typed DTOs.</p>
+      </div>
+      <span aria-hidden className="hidden font-mono text-secondary lg:block">&rarr;</span>
+      <div>
+        <PanelLabel className="text-accent">Report service</PanelLabel>
+        <p className="mt-3 text-sm leading-relaxed text-ink/85">
+          Pydantic request/response models, prompt templates kept apart from logic, LLM generation, error handling.
+        </p>
+      </div>
+      <span aria-hidden className="hidden font-mono text-secondary lg:block">&rarr;</span>
+      <div>
+        <PanelLabel>Two report purposes</PanelLabel>
+        <ul className="mt-3 flex flex-col items-start gap-1.5">
+          <li>
+            <Chip tone="accent" className="py-0.5 text-[11px]">Internal service report</Chip>
+          </li>
+          <li>
+            <Chip tone="accent" className="py-0.5 text-[11px]">Customer-facing service report</Chip>
+          </li>
+        </ul>
+        <p className="mt-2 text-xs leading-relaxed text-secondary">Same session evidence, different audience and level of detail.</p>
+      </div>
+    </div>
   );
 }

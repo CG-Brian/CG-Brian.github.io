@@ -1,237 +1,375 @@
+<Figure>
+  <AtAGlance />
+</Figure>
+
 <Note>
-This project involved an enterprise customer, so the customer, the product's internal names, prompts, procedures, fault codes and infrastructure all stay private. Every pump, query, score and screen on this page is synthetic. If one of them sounds oddly specific, that's just my imagination.
+This work was for an enterprise customer, so the customer, internal product names, prompts, procedures, fault codes, formulas and infrastructure stay private. Every fault, query, score and screen on this page is synthetic and labelled as such.
 </Note>
 
 ## The challenge
 
-Picture a field technician standing in front of a piece of industrial equipment that is very much not doing what it should. The answer is out there somewhere: in a service manual, an old maintenance record, an alarm history, a parts catalogue, or the notes from the last person who stood in exactly this spot. Usually it's spread across all of them.
+A field technician faces a piece of industrial equipment that has stopped doing what it should. The information they need is spread across service manuals, maintenance records, alarm histories, parts catalogues and notes from previous sessions. They have to work out which symptoms matter, which root causes are plausible, what to check first, what to do, what evidence supports it, and how to document the session for the next person.
 
-To make progress, they need to work out which symptoms matter, which root causes are plausible, which one to check first, what to actually do, what evidence backs that up, and finally how to write the whole session down for whoever comes next.
+The platform supported that work with two complementary systems:
 
-The product combined two ways of helping: a conversational assistant that could answer questions from technical documentation, and **structured guided troubleshooting** that walks a technician through a diagnostic decision tree step by step.
+- **A conversational assistant** that answers technical questions, retrieves internal documentation, interprets the available fault context and explains troubleshooting information with grounded responses.
+- **Guided troubleshooting**, a structured decision-tree workflow that takes a technician from symptoms to candidate root causes, diagnostic steps and corrective actions, and records the session outcome.
 
-Answering technical questions turned out to be the easy part. The hard part was everything around it: repeatable workflows, evidence you can rely on, guidance a person can follow with gloves on, and AI components that can be maintained once the demo glow wears off.
+Answering questions is the easy part. The hard part is making the whole system dependable: repeatable workflows, evidence you can trust, guidance a technician can follow on site, and AI components that stay maintainable after the demo.
 
 <Pull>
 How do you combine probabilistic AI reasoning with deterministic troubleshooting workflows without giving up reliability, traceability or maintainability?
 </Pull>
 
-## The system
+## My role & ownership
 
-I didn't architect this platform. I spent my summer in one layer of it, the **AI agent and FastAPI backend**, and also contributed directly to the pipeline that builds diagnostic trees. The interface, the workflow service, document ingestion and the cloud infrastructure were built by others. Here is the shape of it, generalized.
+During my Forward-Deployed Engineering internship, I owned development of multiple AI agent and backend features for an enterprise industrial troubleshooting platform. My work spanned conversational agent behavior, retrieval, diagnostic workflow generation, algorithmic prioritization, service reporting and reliability engineering. I also proposed and prototyped a symptom-driven approach to making existing troubleshooting trees more efficient.
 
-<Figure caption="Conceptual layers only. The highlighted lane is where I worked; the rest is system context built by the wider team.">
+The wider team owned the overall product architecture, frontend, document-ingestion infrastructure and other platform services. My ownership was feature-level, and it often extended across the AI backend and the interfaces of adjacent services.
+
+- **Proposed and prototyped:** Dynamic FM Guidance, symptom-driven narrowing of existing decision trees.
+- **Designed and implemented:** the main agent's prompt architecture, deterministic troubleshooting scoring, two-pass graph construction, service-report generation, image relevance filtering, structured diagnostic extraction and path validation.
+- **Improved:** retrieval query construction, corrective-action guidance, guardrail behavior, symptom-check formatting, and CI and test strategy.
+- **Integrated:** guided-session APIs, DTOs and data mapping across service boundaries.
+
+<Figure caption="Conceptual layers only. The highlighted lane is where most of my feature work lived; several features crossed into tree generation and the guided-workflow interfaces.">
   <HybridArchitecture />
 </Figure>
 
-The design idea I liked most: the system **deliberately splits** two kinds of computation. Natural-language interpretation, evidence synthesis, tool selection, explanations and content enrichment are probabilistic, and that's where an LLM earns its keep. Tree traversal, workflow state, graph assembly, score computation and structural validation are deterministic, and they stay that way.
+The platform deliberately splits two kinds of computation. Natural-language interpretation, evidence synthesis, tool selection, explanation and content enrichment are probabilistic, and that's where an LLM is useful. Tree traversal, workflow state, graph assembly, score computation and structural validation are deterministic, and they stay that way. Most of the decisions below come from respecting that boundary.
 
-An LLM can help *generate and enrich* a diagnostic tree ahead of time. But once a technician is standing in front of the machine, the next step comes from the tree, not from a model improvising one. That one separation explains a lot of the decisions below.
+## Dynamic FM Guidance
 
-## Engineering decisions
+<StoryBrief
+  status="Proposed & prototyped · presented to the customer · not a production feature"
+  problem="Guided sessions walked every technician through the same predetermined yes/no tree for a fault code, even when they already knew the answers to several of its questions."
+  contribution="I proposed a symptom-driven enhancement to the existing decision trees, explored it in a prototype, and presented the concept in a customer-facing discussion."
+  outcome="A design that makes the validated tree do less unnecessary work instead of replacing it, with clear rules for when confirmed symptoms may narrow or only reweight the candidates."
+/>
 
-Three stories from the summer, each a little different in what went wrong and why.
+A technician often arrives with useful information already in hand: an alarm on the panel, an abnormal reading, a visible condition, the result of a quick check. The static workflow still asked about all of it, one step at a time. That's correct behavior and inefficient guidance.
 
-### Deterministic root-cause scoring
+My proposal was to let confirmed observations shape where the existing traversal starts and what it still needs to ask:
 
-A diagnostic tree can list several possible root causes with no signal about which to check first. Showing a technician five equally weighted possibilities is honest, but not very helpful.
+<Figure caption="Synthetic fault, observations, questions and weights. The proposed path is a prototyped design, not deployed runtime behavior, and no measured question reduction is implied.">
+  <DynamicFMGuidance />
+</Figure>
 
-**The tempting answer** was to ask an LLM to rank them. It would produce a ranking, confidently. It might even produce a *different* confident ranking next time. For a decision that should be reproducible and auditable, that's a bug that just hasn't been filed yet.
+### Two ways to give the system context
 
-**What I did instead:** I designed and implemented a deterministic scoring mechanism built on signals that domain experts already provide: how likely a cause is, how much effort it takes to diagnose, and how much effort it takes to fix. Likelihood is the primary signal, effort adjusts the relative priority, and the results are normalized into a distribution you can compare across causes.
+- **A structured checklist.** Technicians select known symptoms from predefined options. It's deterministic, easy to validate, works in constrained environments, and maps directly to known symptom identifiers.
+- **Free text.** Technicians describe what they see in their own words. An AI component extracts candidate symptoms and maps them to existing identifiers where possible, and the technician reviews and confirms the result. The system never silently treats an uncertain extraction as a fact.
 
-<Figure caption="Illustrative causes and numbers, not customer data. The real formula and its weights stay private.">
+### Design decisions
+
+- **Keep the existing decision tree.** The validated guided-troubleshooting engine stays in charge of traversal. Symptom evidence influences where and how it proceeds; an LLM never improvises the path.
+- **Map to existing symptoms.** Observations aren't new graph nodes. They have to resolve to known symptom identifiers and the tree's metadata before they can affect anything.
+- **Confirm before filtering.** A candidate extraction is not evidence. Answers are explicitly yes, no or unknown, and only confirmed answers justify strong decisions. An unknown stays a question.
+- **Skip what's already answered.** Questions covered by a confirmed observation aren't asked again.
+- **Keep a fallback.** Technicians can always continue through the standard step-by-step tree when symptom information is incomplete or unreliable.
+
+The central design question was what a confirmed symptom should be allowed to do to a possible cause:
+
+<Tradeoff
+  chosenLabel="Preferred"
+  left={{
+    title: "Soft prioritization",
+    pros: [
+      "Keeps the correct cause reachable when symptom-to-cause mappings are incomplete",
+      "Still skips questions that are already answered",
+      "Recoverable if an observation turns out to be wrong",
+    ],
+    cons: ["Saves fewer steps than pruning outright"],
+  }}
+  right={{
+    title: "Hard exclusion",
+    pros: ["Shortest possible traversal"],
+    cons: [
+      "An incomplete mapping can remove the right diagnosis",
+      "Difficult to recover from a mistaken observation",
+    ],
+  }}
+/>
+
+### Prototype and exploration
+
+Building the prototype meant working through the existing decision-tree structure, symptom metadata and cause-symptom relationships, the recursive splitting and traversal logic, and how known observations could change candidate selection. It also showed how the deterministic troubleshooting score (below) could carry the prioritization. The approach I explored used confirmed symptoms to shape the starting candidate distribution, marked symptoms that were already used as answered, and then continued through the existing recursive tree logic.
+
+That's a prototype and a design, not a shipped feature, and I haven't measured a reduction in questions or diagnostic time.
+
+<Pull>
+Making a deterministic workflow smarter doesn't always mean replacing it with an LLM. Sometimes AI should interpret the starting context, and the validated workflow should simply do less unnecessary work.
+</Pull>
+
+## Engineering the main conversational agent
+
+<StoryBrief
+  problem="The main assistant had to balance domain relevance, technical accuracy, retrieved evidence, user intent, readability, workflow boundaries, language and guardrails, and do it predictably for every request."
+  contribution="I substantially refined the assistant's prompting architecture into explicit, structured sections, and iterated on it against representative troubleshooting requests and retrieved context."
+  outcome="A clearer behavioral contract: grounding rules that don't get lost among formatting instructions, intent-specific guidance that can't override mandatory constraints, and a firm boundary with the guided workflow."
+/>
+
+The goal wasn't to make the model sound more polished. Its answers had to meet behavioral requirements that other parts of the system, and the technicians, could rely on. I organized the prompt into XML-style sections, each with one responsibility:
+
+<Figure caption="Prompt responsibilities, not separate model calls. Section names are illustrative; the actual prompts stay private.">
+  <PromptArchitecture />
+</Figure>
+
+The decisions that mattered most:
+
+- **Evidence policy stands on its own.** Grounding rules are stated separately from formatting, so the model uses retrieved evidence instead of inventing equipment details or unsupported procedures.
+- **Mandatory requirements outrank intent guidance.** Some rules apply to every answer. Others depend on whether the user wants an explanation, troubleshooting advice or equipment information, and those contextual hints can't override the global contract.
+- **Language follows the user.** Responses use the technician's language where supported, while keeping required technical identifiers and terminology intact.
+- **The workflow owns the workflow.** The assistant can explain symptoms and provide information, but step transitions and guided-session state belong to the deterministic decision-tree system, and the prompt says so explicitly.
+- **Answers are built for use.** Troubleshooting responses lead with actions, conditions, warnings and concise references, because a technically correct paragraph can still be unusable on site.
+
+Prompt architecture doesn't work in isolation. Guardrails decide which requests reach it, retrieval decides which evidence it can use, and the response contract makes output consistent enough for the rest of the system to depend on. I didn't measure a single accuracy number for the main chat; improvements were judged against representative requests and their retrieved context.
+
+<Pull>
+Prompt engineering for an enterprise agent is behavioral interface design: a contract between user intent, retrieved evidence, model behavior and downstream software.
+</Pull>
+
+## Retrieval & grounding
+
+### Debugging the evidence pipeline
+
+<StoryBrief
+  problem="Generated troubleshooting workflows sometimes omitted the replacement parts and tools a technician would need. It looked like missing documentation."
+  contribution="I traced the retrieval path end to end, rebuilt query construction around components and the documentation's language, and reused evidence that earlier pipeline stages had already found."
+  outcome="In one nine-cause validation example, causes without extracted parts fell from 5 to 3 and parts entries rose from 10 to 16."
+/>
+
+Rather than assume the index was incomplete, I traced what the pipeline actually did. I looked at the available component metadata, the generated query text, the chunks that came back, the language of the query versus the language of the documents, and whether relevant source evidence was being reused.
+
+Two problems stood out. Queries were frequently assembled from long **German** descriptions, while the useful technical documentation was often in English or another language. And the queries emphasized cause-and-action narratives over the component actually being searched for, so the useful signal was diluted. In an initial sample of 27 search cases, the existing strategy found no relevant document in the top three for any of them.
+
+<Figure caption="Synthetic query and documents. The counts at the bottom come from one nine-cause validation example: useful evidence, not a benchmark.">
+  <RetrievalDebug />
+</Figure>
+
+I changed query construction to emphasize the relevant equipment components, technical identifiers and terms aligned with the target documentation, and to reuse evidence already retrieved upstream. I also refined the grounding behavior for parts and tools generation.
+
+One trade-off is worth stating. My first relevance filter relied on token overlap and domain-specific stopwords. Review feedback rightly called it brittle, because I'd applied a deterministic rule to a semantic problem. The final version keeps deterministic normalization for exact identifiers and leaves contextual relevance to semantic grounding.
+
+The nine-cause numbers are a small validation example, not a production-wide measurement, so I don't generalize them into a retrieval-accuracy figure.
+
+<Pull>
+Before changing the model, inspect the retrieval query and the evidence it returns. An LLM can't use evidence the system never retrieved.
+</Pull>
+
+### Image relevance filtering
+
+<StoryBrief
+  problem="Retrieval returns images from any broadly relevant document, so answers collected diagrams that had nothing to do with what was actually said."
+  contribution="I implemented image relevance filtering, then moved it from right after retrieval to after answer generation, and made it fail-open."
+  outcome="The filter now judges relevance against the answer that was actually written, and a filter failure never blocks the main troubleshooting response."
+/>
+
+My first version filtered images immediately after retrieval, which meant it was judging relevance to an answer that didn't exist yet. After generation, the filter can consider the question, the generated answer and the candidate images together.
+
+<Figure caption="Same model call, different moment in the pipeline, different information available.">
+  <ImageFilterPlacement />
+</Figure>
+
+Because images are a supporting feature, the filter fails open. If it errors, the technician still gets the answer, possibly with a few extra images. The filter runs in both the conversational and diagnostic-content workflows.
+
+<Pull>
+The right place in a pipeline for an AI judgment depends on what the system knows at that stage.
+</Pull>
+
+## Diagnostic algorithms & workflows
+
+### Deterministic troubleshooting scoring
+
+<StoryBrief
+  problem="A diagnostic workflow can surface several possible root causes with no signal about which to check first, and an LLM-generated ranking would be hard to reproduce."
+  contribution="I designed and implemented a deterministic troubleshooting score built on expert-provided signals, integrated it into diagnostic-tree generation, and unit-tested its mathematical behavior."
+  outcome="Reproducible, explainable priorities with no extra model calls, and the prioritization signal the Dynamic FM Guidance prototype builds on."
+/>
+
+The score combines occurrence likelihood, testing effort and corrective-action effort. Occurrence is weighted most heavily, effort applies a penalty, and the results are normalized within the relevant fault context so causes can be compared directly.
+
+<Figure caption="Illustrative causes and numbers, not customer data. The real formula and its coefficients stay private.">
   <PriorityDistribution />
 </Figure>
 
-The fun part was the edges. Missing inputs get a sensible default **at calculation time**, without rewriting the original missing data, so nobody later mistakes my default for an expert's judgement. A single cause gets the whole distribution, normalization has to hold for any number of causes, and the boundary cases got their own unit tests. It all lives in the deterministic part of the build pipeline, so there's no extra model call.
+The implementation details were where correctness lived:
+
+- Defaults for missing expert inputs are applied **at calculation time**. The source data is never rewritten as though an expert had supplied the value.
+- Edge cases are deterministic, and a single cause normalizes correctly.
+- Normalization holds for any number of causes.
+- Unit tests cover the boundary cases and the score's integration into the tree-generation pipeline.
 
 <Tradeoff
   left={{
-    title: "Deterministic formula",
+    title: "Deterministic score",
     pros: ["Reproducible and explainable", "No extra model calls or latency", "Straightforward to unit test"],
     cons: ["Only as good as the expert inputs", "Can't weigh arbitrary context on its own"],
   }}
   right={{
     title: "LLM-generated ranking",
     pros: ["More flexible contextual interpretation"],
-    cons: ["Hard to reproduce consistently", "Extra latency and cost", "Score semantics are less predictable"],
+    cons: ["Hard to reproduce consistently", "Extra latency and cost", "Less predictable score semantics"],
   }}
 />
 
 <Pull>
-Use AI where semantic flexibility is valuable. Use deterministic algorithms where consistency is the stronger requirement.
+Use deterministic algorithms when a decision needs repeatability, mathematical consistency and explicit tests.
 </Pull>
 
-### Debugging retrieval at the source
+### Tree construction and graph contracts
 
-Generated troubleshooting workflows were sometimes missing the replacement parts and tools a technician would need. The obvious hypothesis was that the search index simply didn't contain the right documentation.
+<StoryBrief
+  problem="Generated diagnostic trees were structurally valid, yet the frontend and workflow service sometimes presented an alternative branch before the intended primary path."
+  contribution="I traced the issue to how the tree builder inserted edges and introduced two-pass graph construction, applying the same fix in both builder paths where it appeared."
+  outcome="Downstream consumers receive the primary path first, protected by explicit edge-order assertions and graph-level regression tests."
+/>
 
-Before believing that, I wanted to see what was actually happening. So I walked the pipeline: Was component metadata available? Which fields were empty? What queries were really being sent? What came back? And what language were the queries and documents each written in?
-
-That last question was the one. Queries were frequently built from **German descriptive text**, while the relevant technical documents were mostly in other languages, English especially. On top of that, the queries leaned on long cause-and-action narratives instead of naming the component we were actually looking for. The signal was in there, just diluted. In an initial sample of 27 search cases, the existing query strategy found no relevant document in the top three for any of them.
-
-<Figure caption="Synthetic query and documents. The counts at the bottom come from one nine-cause validation example: useful evidence, not a benchmark.">
-  <RetrievalDebug />
-</Figure>
-
-The fix was to make queries **component-focused and aligned with the documentation's language**, and to reuse the relevant source chunks that earlier pipeline stages had already found, so parts and tools extraction had better grounding to work from.
-
-There was also a detour worth admitting. My first version decided relevance with hardcoded token-overlap and stopword rules. Code review rightly called them brittle and too domain-specific. Looking back, I'd reached for a deterministic tool on a semantic problem. The final design keeps a minimal amount of deterministic text normalization and leaves contextual relevance to semantic grounding rules. Exact identifiers suit string logic; "is this part relevant to this cause and fix?" doesn't.
-
-In that nine-cause example, causes with no extracted parts went from 5 to 3, and parts entries went from 10 to 16. That's 60% more entries in that sample, which is a nice number to see and a terrible one to generalize, so I won't.
-
-<Pull>
-Before tuning the model, look at the query being issued and the evidence coming back. A fluent model can't recover evidence the retrieval step never handed it.
-</Pull>
-
-### Fixing an implicit graph contract
-
-This is my favourite bug of the summer, mostly because it looked like somebody else's.
-
-The tree builder produced graphs that a separate frontend and workflow service consumed. Those consumers expected each step's outgoing edges in a particular order, primary branch first and alternative after. Some generated chains broke that expectation. The graph was perfectly valid; it just offered the technician the alternative path *first*.
-
-At first glance that looks like a rendering bug. Tracing the construction instead showed a mismatch between the order the algorithm **inserted** edges and the order downstream consumers **read** them. While building a chain, the builder attached some secondary edges immediately and only added primary-path edges later, so the final edge array came out in an order nobody intended.
+The downstream services expected each step's outgoing edges in a particular order, but no schema said so. While building a chain, the builder attached some alternative edges immediately and added primary-path edges later, so the serialized order didn't match what consumers read.
 
 <Figure caption="Generic Primary / Alternative labels. No real diagnostic content.">
   <GraphOrdering />
 </Figure>
 
-I rebuilt the affected pattern as **two-pass construction**: build and connect the primary path first, keeping alternatives in a pending collection, then attach the deferred alternatives once the main path is complete. The same root cause turned up in a second part of the builder, so it got the same fix. Tests now assert outgoing edge order explicitly, and graph-level regression snapshots guard the overall structure.
-
-The lesson I keep coming back to is that nothing was *missing*. Producer and consumer simply shared an assumption that no schema wrote down.
+The two-pass version builds and connects the primary path first, collects alternative branches in a pending set, then attaches them once the primary structure is complete. Tests now assert outgoing edge order explicitly, and regression snapshots guard the overall graph.
 
 <Pull>
-Ordering can be an API contract, even when the schema doesn't say so.
+Valid structured data can still break a downstream contract. When consumers rely on ordering, ordering is part of the interface.
 </Pull>
 
-## Designing reliable agent behavior
+### Corrective-action guidance
 
-The featured stories above are the dramatic ones. These are the everyday ones, which is where most of the reliability actually comes from.
-
-### Guardrails that say yes to the right things
-
-The assistant needed to stay inside its industrial troubleshooting domain, but its guardrail was keen enough to reject legitimate questions too. Equipment-related network configuration questions were a recurring false positive: in scope, and politely refused anyway.
-
-I worked with an evaluation set of **82 labeled cases across 10 categories**: real domain requests, casual off-topic chat, ambiguous boundary cases, adversarial prompts and jailbreak attempts. I tuned the guardrail prompts and configuration iteratively, comparing decisions against expected labels across every category rather than celebrating a few nice examples. The goal was fewer false positives *without* new false negatives in the categories that should stay blocked.
-
-Because every evaluation run needed real LLM inference, with its cost, latency and nondeterminism, these runs were kept apart from deterministic unit tests on purpose. A stricter guardrail isn't automatically a better one; the target is the right decision for the context.
-
-### Filtering images after the answer, not before
-
-Technical documents are full of diagrams, and retrieval happily returns images from any broadly relevant document. Show them all and the answer turns into a scrapbook.
-
-My first implementation filtered images right after retrieval. Then I noticed what it *didn't* know at that point: the final answer. It was judging relevance to a response that didn't exist yet. So I moved the filter to **after generation**, where it can weigh the question, the answer that was actually written, and the candidate images together.
-
-<Figure caption="Same model call, different moment in the pipeline, different information available.">
-  <ImageFilterPlacement />
-</Figure>
-
-The filter is also **fail-open**. Images are a supporting feature, so if filtering fails, the technician still gets their answer, possibly with a few unnecessary images. That trades some visual noise for availability, which is the right trade for a supporting feature. It runs in both the conversational and diagnostic-content workflows.
-
-<Pull>
-When you make an AI decision matters, because what the system knows changes as the pipeline runs.
-</Pull>
-
-### Guidance a technician can actually follow
-
-Generated instructions were often *correct* and still hard to use: long paragraphs, preparation and corrective actions mixed together, conditions hidden mid-sentence, warnings buried in ordinary text, document metadata nobody asked for, and references that grew into essays.
-
-The model didn't lack knowledge; the shape of its answer didn't match how technicians read instructions. I grouped the defects into structure, formatting and readability, and noise, then redesigned the relevant prompts around preparation, numbered steps, explicit conditions, separated warnings and short references.
+<StoryBrief
+  problem="Generated diagnostic instructions were technically relevant but hard to follow on site: long paragraphs, mixed preparation and repair steps, conditions buried in prose, warnings that didn't stand out, unnecessary metadata, overly long citations."
+  contribution="I grouped the defects into structural, formatting and noise problems, then redesigned the relevant prompts and output structures."
+  outcome="Instructions with preparation, numbered steps, explicit conditions, separated warnings, concise references and language-aware formatting, validated qualitatively across diagnostic node types."
+/>
 
 <Figure caption="Fictional equipment and procedure, written to show the shape, not the content.">
   <GuidanceBeforeAfter />
 </Figure>
 
-I validated the change with representative before-and-after outputs across different diagnostic node types. That was qualitative evaluation, and I'll describe it that way rather than inventing a readability score. A response that's informative in a chatbot can still be unusable as operational guidance.
+I compared representative before-and-after outputs across different node types. That's qualitative evaluation, so I report it as such rather than inventing a readability score.
 
-### Service reports, built on honest data
+### Symptom-check integration
 
-After a guided session, technicians needed a structured summary: symptoms investigated, decisions taken, actions performed, and the surrounding equipment context. That data lived across several services, and the agent backend had no report generation at all when I started.
+I also integrated `symptom_check` data into the existing guided-session formatting, so the same session data can feed both conversational responses and summary reports. That meant handling symptom identifiers and answers, locale fallback, unknown values and empty symptoms, while staying compatible with existing step and action records. The behavior is covered by unit tests.
 
-I designed and implemented that initial LLM-backed capability: a new report-generation service, service clients pulling in guided-session data, session history combined with supporting operational context, **two distinct report purposes**, prompt templates kept separate from application logic, request and response models aligned with downstream contracts, and unit tests for expected responses and error handling.
+This formatting work is related to Dynamic FM Guidance but separate from it. It isn't evidence that dynamic tree reduction was deployed.
 
-The humbling part: the downstream session data didn't match the schema I'd assumed. I revisited the DTOs, simplified the models as the integration matured, and merged overlapping session models before they could drift apart. A report generator will write fluent prose about session data that was mapped wrongly, and that's exactly the problem.
+## Backend features & integration
 
-## Engineering for production
+### Service-report generation
 
-This part has no LLM in it, and it's still some of the work I'm proudest of.
+<StoryBrief
+  problem="After a troubleshooting session, technicians needed a coherent summary of symptoms, steps, decisions, corrective actions and equipment context, and the AI backend had no report-generation capability."
+  contribution="I designed and implemented the initial LLM-backed report-generation workflow end to end, from service-client integration and data mapping to prompts, error handling and tests."
+  outcome="Report generation for two purposes, an internal service report and a customer-facing service report, built on typed contracts with the guided-session service."
+/>
 
-The agent repository already had a sizeable test suite, but automated Python validation didn't consistently run on ordinary feature and fix branches. The suite also mixed several kinds of test together: deterministic unit tests, tests needing a running server, LLM-dependent evaluations, and tests that called external services. Making all of that a required check would have produced a gate that failed for reasons unrelated to the code under review.
+<Figure caption="Conceptual flow. Service names, schemas and prompts stay private.">
+  <ReportFlow />
+</Figure>
 
-I led a three-phase effort to sort that out.
+The work covered:
 
-1. **CI integration.** I extended pipeline validation to feature and fix branches, with Python checks and pytest results published in a machine-readable form.
-2. **Test classification.** I went through the suite, classified tests by their actual dependencies, and introduced explicit integration markers so deterministic tests could run reliably on every change. I also wrote a technical briefing for backend and QA collaborators so we agreed on the scope before anything changed.
-3. **Self-contained tests.** One remaining integration test needed a local server. Instead of accepting that, I traced the app's dependency-injection setup and converted it to an **in-process ASGI test** with an in-memory database, so it no longer needs a separately running API.
+- report-generation service logic and its FastAPI-facing integration;
+- guided-session API client integration;
+- DTO and Pydantic model definitions, and the data mapping between them;
+- prompt templates kept separate from application logic;
+- error handling, and unit tests for expected responses and failure cases.
 
-<Figure caption="Deterministic checks gate the merge; model-dependent evaluations run on their own terms.">
+The integration also surfaced a real schema problem. The guided-session data I'd initially modelled didn't match the actual API response. I revisited the DTOs, simplified the models as the integration matured, and consolidated overlapping session models before they could drift apart.
+
+<Pull>
+A generated report can be fluent and still wrong if the service contracts feeding it are inconsistent. Data mapping is part of AI correctness.
+</Pull>
+
+### Additional AI capabilities
+
+For the diagnostic authoring workflow, I implemented two further backend capabilities:
+
+- **Structured diagnostic extraction** turns supplied free text into structured diagnostic information.
+- **Diagnostic-path validation** compares a proposed diagnostic path against supplied reference paths.
+
+Both use structured output contracts and bounded input context, and both are independently testable. They're deliberately self-contained: they work only from context the caller provides and make no additional outbound service calls, which keeps their scope narrow and their availability independent of other services. The trade-off is that their data is only as fresh as what the caller sends. I also kept a strict naming distinction between *newly extracted* information and *existing candidates* supplied for comparison, so suggestions are never confused with references.
+
+## Evaluation & production reliability
+
+### Guardrail evaluation
+
+<StoryBrief
+  problem="The assistant had to reject genuinely out-of-scope requests without blocking valid industrial support questions, but the guardrail was rejecting legitimate requests too, such as equipment-related network configuration questions."
+  contribution="I tuned the guardrail prompts and configuration iteratively against a labeled evaluation set of 82 cases across 10 categories, checking false positives and false negatives in every category."
+  outcome="Fewer legitimate requests refused, without loosening the categories that should stay blocked. No single accuracy figure is claimed."
+/>
+
+The categories spanned valid domain questions, casual off-topic chat, ambiguous boundary cases, adversarial requests and jailbreak attempts. Every evaluation run needs real LLM inference, with its cost, latency and nondeterminism, so these runs were deliberately kept separate from deterministic unit tests. A stricter guardrail isn't automatically a better one; the target is the right decision for each context.
+
+### Testing and CI
+
+<StoryBrief
+  problem="The agent repository mixed deterministic unit tests, server-dependent tests, external-service integration tests and LLM-dependent evaluations, and automated validation didn't run consistently on feature and fix branches."
+  contribution="I led a three-phase effort to classify tests by their real dependencies, run the right checks on every branch, and remove an unnecessary server dependency."
+  outcome="Deterministic checks gate changes reliably, model-dependent evaluations run on their own terms, and a release-pipeline regression was caught before merge."
+/>
+
+1. **CI integration.** I extended validation to feature and fix branches, with Python checks and pytest results published in a machine-readable form.
+2. **Test classification.** I classified the suite by actual dependency and introduced explicit integration-test markers, so deterministic tests run on every change. I wrote a technical briefing for backend and QA collaborators to agree the scope first.
+3. **Self-contained tests.** I traced the app's dependency-injection setup and converted a server-dependent test into an **in-process ASGI test** with an in-memory database.
+
+<Figure caption="Deterministic checks gate the merge; model-dependent evaluations run separately.">
   <CIBeforeAfter />
 </Figure>
 
-One more catch from the refactor: a build step that looked removable had a quiet second job, preparing an executable path that a later release step relied on. I made that dependency explicit before the change merged, so the release pipeline didn't break later.
+During the refactor I also noticed that a build step slated for removal had a second job: preparing an executable path that a later release step relied on. I made that dependency explicit before the change merged, so the release pipeline kept working.
 
-At the recorded snapshot, the repository's unit suite stood at 269 passing tests. Those are the team's tests, not mine alone. My part was making sure they ran on the right branches, against the right boundaries.
+At a recorded snapshot, the repository's deterministic suite stood at 269 passing tests. That's the team's suite, not tests I wrote alone; my contribution was making it run on the right branches, against the right boundaries.
 
 <Pull>
-A reliable AI system also needs reliable software delivery. Nondeterministic evaluations and deterministic unit tests shouldn't share an execution strategy by default.
+Production AI engineering includes the systems that make changes safe to test, review and integrate, not just the model-facing code.
 </Pull>
 
-## Contributions & impact
+## Results & contributions
 
-In short, I owned substantial development work in the AI agent and backend layer. The numbers below are real, and each comes with its context.
+<Figure caption="What shipped as features, what was proposed and prototyped, and what was validated, each with its actual scope.">
+  <ContributionLedger />
+</Figure>
+
+The figures I can stand behind, each with its context:
 
 <QualifiedFacts />
 
-### What I worked on directly
-
-- Designed and implemented the initial LLM-backed service report generation, covering two report purposes.
-- Designed and implemented deterministic root-cause scoring for diagnostic tree construction.
-- Traced a downstream ordering issue to the graph construction algorithm and introduced two-pass construction, fixing it in both places it appeared.
-- Redesigned retrieval query construction after finding the mismatch between query intent and document language.
-- Implemented image relevance filtering, then moved it after generation and made it fail-open.
-- Redesigned diagnostic guidance prompts for operational readability.
-- Tuned guardrail behavior against 82 labeled evaluation cases.
-- Introduced automated test execution and test classification into the agent repository's CI workflow.
-
-### Smaller pieces
-
-Diagnostic knowledge often starts life as free-form notes rather than tidy tree data. For the authoring workflow, I implemented AI-assisted **structured extraction** of diagnostic information from free text, and **diagnostic-path evaluation** that compares a proposed path against supplied reference paths. Both use structured outputs and are independently testable.
-
-Both are deliberately self-contained: they work only from context the caller provides, with no extra outbound service calls. That keeps their scope narrow and their availability independent of other services. The trade-off is that their data is only as fresh as the caller makes it. I also kept a strict naming distinction between *newly extracted* information and *existing candidates* supplied for comparison, because "suggestion" and "reference" are very different things to confuse.
-
-### The system around it
-
-The overall product architecture, frontend application, decision-tree serving service, document indexing, operational data gateway, deployment infrastructure and offline synchronization were the wider team's work. I built within that context, not around it.
+Across the summer, I took ownership of features that crossed prompting, retrieval, decision-tree algorithms, service integration and testing. I proposed new functionality as well as fixing existing behavior, and worked within, and across, an architecture the wider team built. I haven't claimed reduced field-service time, production accuracy or business impact, because I don't have evidence for them.
 
 ## Lessons learned
 
-Looking back across the summer, nearly every problem lived in a different layer, and each layer needed a different kind of fix.
+Nearly every problem lived in a different layer, and each layer needed a different kind of fix.
 
 <Figure caption="Related, but distinct, failure domains.">
   <FailureDomains />
 </Figure>
 
-### Diagnose the right layer
+### Improving a system can beat replacing it
 
-Missing parts recommendations came from query construction. Wrong branch order came from graph construction and an unwritten interface contract. Neither would have been fixed by rewording a prompt, however many times. When an AI system gives a poor result, I now want to know where the information or the structure broke down before I touch the model.
+Dynamic FM Guidance showed me that a deterministic workflow can become more efficient by using confirmed context, without handing execution control to an LLM.
 
-### Deterministic and probabilistic logic have different jobs
+### Prompts are behavioral contracts
 
-Scoring showed why reproducible calculations belong in deterministic code. Image filtering showed why contextual judgement suits a model. My token-overlap heuristic showed that a deterministic rule isn't automatically the safe choice either. The right boundary depends on whether the problem is structural, mathematical or semantic. The aim isn't to use the LLM less or more; it's to give each approach the work it's suited to.
+A conversational agent depends on explicit grounding, scope, response structure, and a clear boundary between AI reasoning and deterministic workflows.
 
-### What the system knows depends on when you ask
+### Diagnose the correct failure layer
 
-At retrieval time, the answer didn't exist yet. After generation, it did. Choosing *when* to make a decision can matter as much as choosing *which model* makes it.
+Retrieval failures, schema mismatches, graph ordering and prompt behavior each needed a different fix. Not every AI-system problem is solved by changing the prompt.
 
-### Implicit contracts are still contracts
+### Data and software contracts matter
 
-Two services can agree on a schema and still disagree about what the serialized data means. Tests need to cover behavioral expectations, not just structural validity. Correctness is defined by how the next component consumes the output.
+Report generation and guided-session integration showed that wrong assumptions about structured data produce convincing but incorrect output.
 
-### Production AI is software engineering
+### Reliability extends beyond model behavior
 
-Building features was only part of the job. I also classified tests, fixed integration assumptions, improved CI and protected release behavior. AI engineering becomes production engineering when model behavior, software contracts, testing and operational reliability are designed together.
+Testing strategy, integration boundaries, CI and failure handling are as much a part of delivering an AI feature as the model call itself.
 
 <Pull>
-I'm not limited to connecting LLM APIs. What I enjoyed most this summer was finding the layer where something actually broke, and fixing it there.
+Building reliable AI systems is less about adding an LLM to every problem and more about deciding where reasoning belongs, where deterministic logic should stay in control, and how the two can work together safely.
 </Pull>

@@ -1,23 +1,35 @@
 import type { MDXComponents } from "mdx/types";
+import { DynamicFMGuidance } from "./DynamicFMGuidance";
 import { EntityOnceDiagram } from "./EntityOnceDiagram";
 import {
   ArchitectureDiagram,
+  CoordinateMapping,
+  ErrorAnalysis,
   MatrixToGraph,
   OutcomeLedger,
+  ParserDiagram,
   PipelineComparison,
   ProvenanceTrace,
+  ReadSettingsInference,
   ReconciliationTable,
+  TraceFlow,
+  TrackedValueTrace,
 } from "./normalization-diagrams";
 import {
+  AtAGlance,
   CIBeforeAfter,
+  ContributionLedger,
   FailureDomains,
   GraphOrdering,
   GuidanceBeforeAfter,
   HybridArchitecture,
   ImageFilterPlacement,
   PriorityDistribution,
+  PromptArchitecture,
   QualifiedFacts,
+  ReportFlow,
   RetrievalDebug,
+  StoryBrief,
   Tradeoff,
 } from "./troubleshooting-diagrams";
 import { EvidenceInspection, MetricExplorer } from "./StageGroundInteractive";
@@ -103,6 +115,12 @@ export const mdxComponents: MDXComponents = {
     <a className="underline decoration-border underline-offset-4 transition-colors hover:text-accent hover:decoration-accent" {...props} />
   ),
   code: (props) => <code className="font-mono text-[0.88em]" {...props} />,
+  pre: (props) => (
+    <pre
+      className="mt-6 overflow-x-auto rounded-[3px] border border-border px-5 py-4 font-mono text-[13px] leading-[1.7] text-ink/85 [&>code]:text-[1em]"
+      {...props}
+    />
+  ),
   strong: (props) => <strong className="font-medium text-ink" {...props} />,
   Placeholder,
   Note,
@@ -116,6 +134,12 @@ export const mdxComponents: MDXComponents = {
   ProvenanceTrace,
   ReconciliationTable,
   OutcomeLedger,
+  ParserDiagram,
+  CoordinateMapping,
+  ReadSettingsInference,
+  ErrorAnalysis,
+  TrackedValueTrace,
+  TraceFlow,
   // Industrial AI Troubleshooting Platform diagrams.
   HybridArchitecture,
   Tradeoff,
@@ -127,6 +151,12 @@ export const mdxComponents: MDXComponents = {
   CIBeforeAfter,
   FailureDomains,
   QualifiedFacts,
+  AtAGlance,
+  StoryBrief,
+  PromptArchitecture,
+  ContributionLedger,
+  ReportFlow,
+  DynamicFMGuidance,
   // StageGround figures.
   ArmProgression,
   EvidenceInspection,

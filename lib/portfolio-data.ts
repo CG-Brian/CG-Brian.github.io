@@ -113,17 +113,17 @@ export const projects: Entry[] = [
   {
     id: "P01",
     slug: "industrial-ai-troubleshooting",
-    focus: ["Agent orchestration & retrieval", "Deterministic diagnostic algorithms", "Evaluation, testing & CI"],
+    focus: ["Conversational agent & retrieval", "Diagnostic algorithms & workflows", "Dynamic FM Guidance (prototype)"],
     title: "Industrial AI Troubleshooting Platform",
     category: "Forward-Deployed Engineering / AI Agents",
     description:
-      "Built AI agent and backend capabilities for an industrial troubleshooting platform, combining retrieval-augmented generation, structured diagnostic workflows, and reliability-focused engineering.",
+      "Owned multiple AI agent and backend features for an industrial troubleshooting platform, spanning conversational AI, retrieval, diagnostic algorithms, service reporting, and reliability. Proposed and prototyped symptom-driven guided troubleshooting.",
     status: "Internship case study · Summer 2026",
     detail: {
-      subtitle: "Engineering reliable AI agents and guided diagnostic workflows for complex industrial operations.",
+      subtitle: "Engineering reliable AI agents and diagnostic workflows for industrial operations.",
       facts: [
-        { label: "Context", value: "Enterprise AI engineering internship · Summer 2026" },
-        { label: "Areas", value: "Forward-Deployed Engineering · AI Agents · Backend Systems" },
+        { label: "Context", value: "Forward-Deployed Engineering Internship · Summer 2026" },
+        { label: "Areas", value: "Agentic AI · Backend Engineering · Retrieval · Diagnostic Algorithms" },
         {
           label: "Stack",
           value: "Python · FastAPI · LangGraph · LangChain · Azure OpenAI · RAG · Pydantic · pytest · CI/CD",
@@ -149,19 +149,19 @@ export const projects: Entry[] = [
   {
     id: "P02",
     slug: "industrial-ai-normalization",
-    focus: ["Deterministic parsing + LLM normalization", "Entity-once normalization", "Provenance & validation"],
+    focus: ["Deterministic spreadsheet parsing", "AI normalization & evaluation", "Traceable data contracts"],
     title: "Industrial AI Normalization Engine",
     category: "Forward-Deployed Engineering / Applied AI",
     description:
-      "Building a reliable hybrid AI pipeline to transform complex industrial engineering spreadsheets into structured, consistent, and traceable data.",
+      "Developed core parsing and AI normalization capabilities for heterogeneous industrial engineering spreadsheets, spanning deterministic matrix extraction, automatic header inference, normalization quality, and field-level traceability.",
     status: "Internship case study",
     detail: {
       subtitle:
-        "Engineering reliable, traceable data transformations with deterministic parsing and LLM-assisted normalization.",
+        "Building reliable, traceable AI pipelines for heterogeneous industrial engineering spreadsheets.",
       facts: [
-        { label: "Context", value: "Enterprise AI engineering · Forward-deployed internship" },
-        { label: "Areas", value: "Forward-Deployed Engineering · Applied AI · Enterprise Data Workflows" },
-        { label: "Stack", value: "Python · FastAPI · LLMs · Pydantic · Structured extraction" },
+        { label: "Context", value: "Forward-Deployed Engineering Internship · 2026" },
+        { label: "Areas", value: "Data Engineering · Applied AI · Data Contracts · Traceability" },
+        { label: "Stack", value: "Python · FastAPI · LLMs · Pydantic · ExcelJS · Structured outputs" },
       ],
     },
     // Generic cause-and-effect matrix template. Public illustration, not a customer spreadsheet.
