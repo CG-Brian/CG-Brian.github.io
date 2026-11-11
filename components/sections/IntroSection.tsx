@@ -2,11 +2,24 @@ import Image from "next/image";
 import { Section } from "@/components/layout/Section";
 import { ConnectionLayer, type Connection } from "@/components/network/ConnectionLayer";
 import { SectionLabel } from "@/components/ui/SectionLabel";
-import { boundaries } from "@/lib/network";
+import { boundaryEdges, layerNode, spineIndex, type Annotation } from "@/lib/network";
 import { profile } from "@/lib/portfolio-data";
+import { ContributionCalendar } from "./ContributionCalendar";
 
+// The portrait fans out into the first boundary layer, which carries the network into Foundations.
 const connections: Connection[] = [
-  { from: { el: "portrait", side: "right" }, to: { edge: "right", y: boundaries.introToFoundations[0] } },
+  ...[0, 1, 2, 3].map(
+    (i): Connection => ({
+      from: { el: "portrait", side: "right" },
+      to: layerNode("introToFoundations", "before", i),
+      tone: i === spineIndex.before ? "spine" : "content",
+    }),
+  ),
+  ...boundaryEdges("introToFoundations", "before"),
+];
+
+const annotations: Annotation[] = [
+  { edge: "right", y: 0.17, parts: ["h", { sub: "l+1" }, " = W", { sub: "l" }, "h", { sub: "l" }, " + b", { sub: "l" }] },
 ];
 
 function Portrait() {
@@ -30,7 +43,7 @@ function Portrait() {
 export function IntroSection() {
   return (
     <Section id="introduction" labelledBy="intro-title">
-      <ConnectionLayer connections={connections} className="hidden lg:block" />
+      <ConnectionLayer connections={connections} annotations={annotations} className="hidden lg:block" />
 
       <div className="relative z-10 mx-auto grid max-w-[1280px] gap-14 lg:h-full lg:grid-cols-12 lg:items-center lg:gap-6 lg:px-16 lg:pt-16">
         <div className="lg:col-span-7 xl:col-span-6">
@@ -65,6 +78,8 @@ export function IntroSection() {
               </li>
             ))}
           </ul>
+
+          <ContributionCalendar />
         </div>
 
         <div className="flex lg:col-span-4 lg:col-start-9 lg:justify-center">

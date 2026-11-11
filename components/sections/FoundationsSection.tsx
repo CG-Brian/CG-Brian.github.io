@@ -6,23 +6,36 @@ import { ConnectionLayer, type Connection } from "@/components/network/Connectio
 import { TokenizationVisual } from "@/components/network/TokenizationVisual";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { cn } from "@/lib/cn";
-import { boundaries } from "@/lib/network";
+import { boundaryEdges, layerNode, spineIndex } from "@/lib/network";
 import { identity, skills, type SkillId } from "@/lib/portfolio-data";
 
 const connections: Connection[] = [
-  { from: { edge: "left", y: boundaries.introToFoundations[0] }, to: { el: "identity", side: "left" } },
+  // The layer arriving from the Introduction converges on the identity panel.
+  ...boundaryEdges("introToFoundations", "after"),
+  ...[0, 1, 2, 3].map(
+    (i): Connection => ({
+      from: layerNode("introToFoundations", "after", i),
+      to: { el: "identity", side: "left" },
+      tone: i === spineIndex.after ? "spine" : "content",
+    }),
+  ),
   { from: { el: "identity", side: "right" }, to: { el: "tokens", side: "left" } },
   // Each keyword's mapping row leads into its skill node.
   ...skills.map(
     (s): Connection => ({ from: { el: `map-${s.id}`, side: "right" }, to: { el: `skill-${s.id}`, side: "left" }, group: s.id }),
   ),
-  ...skills.map(
-    (s, i): Connection => ({
-      from: { el: `skill-${s.id}`, side: "right" },
-      to: { edge: "right", y: boundaries.foundationsToProjects[i] },
-      group: s.id,
-    }),
+  // Each skill diverges into two neighbouring nodes of the next boundary layer.
+  ...skills.flatMap((s, i) =>
+    [i, i + 1].map(
+      (j): Connection => ({
+        from: { el: `skill-${s.id}`, side: "right" },
+        to: layerNode("foundationsToProjects", "before", j),
+        group: s.id,
+        tone: j === spineIndex.before && i === 1 ? "spine" : "content",
+      }),
+    ),
   ),
+  ...boundaryEdges("foundationsToProjects", "before"),
 ];
 
 function IdentityBlock() {

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/cn";
-import type { SectionId } from "@/lib/portfolio-data";
+import { sections, type SectionId } from "@/lib/portfolio-data";
 
 type Props = {
   id: SectionId;
@@ -14,6 +14,8 @@ type Props = {
  * in a vertical page, indented to sit beside the spine line.
  */
 export function Section({ id, labelledBy, children, className }: Props) {
+  const next = sections[sections.findIndex((s) => s.id === id) + 1];
+
   return (
     <section
       id={id}
@@ -27,6 +29,15 @@ export function Section({ id, labelledBy, children, className }: Props) {
       )}
     >
       {children}
+      {/* Mobile only: sections stack vertically, so point to the next one in the reading flow. */}
+      {next && (
+        <a
+          href={`#${next.id}`}
+          className="mt-14 inline-flex items-center gap-2 py-2 font-mono text-xs text-secondary transition-colors hover:text-accent lg:hidden"
+        >
+          Next <span className="text-accent">{next.number}</span> {next.label} <span aria-hidden>&darr;</span>
+        </a>
+      )}
     </section>
   );
 }

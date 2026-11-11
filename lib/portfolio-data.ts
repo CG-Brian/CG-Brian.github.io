@@ -1,3 +1,5 @@
+import type { EntryImages } from "./images";
+
 /**
  * Single source of truth for portfolio content.
  * Add a project or research entry here, then add a matching MDX file in
@@ -27,6 +29,8 @@ export type Entry = {
     subtitle: string;
     facts: { label: string; value: string }[];
   };
+  /** Optional card and hero imagery. Only reference files that exist under /public. */
+  images?: EntryImages;
 };
 
 export type Collection = "projects" | "research";
@@ -126,6 +130,21 @@ export const projects: Entry[] = [
         },
       ],
     },
+    // Public photo (Unsplash, American Public Power Association). Generic field context, nothing from the engagement.
+    images: {
+      card: [
+        {
+          src: "/images/projects/industrial-ai-troubleshooting/field-card.webp",
+          alt: "Wind turbines across grassy hills at sunset",
+          position: "50% 45%",
+        },
+      ],
+      hero: {
+        src: "/images/projects/industrial-ai-troubleshooting/field-hero.webp",
+        position: "60% 40%",
+        opacity: 0.24,
+      },
+    },
   },
   {
     id: "P02",
@@ -145,6 +164,21 @@ export const projects: Entry[] = [
         { label: "Stack", value: "Python · FastAPI · LLMs · Pydantic · Structured extraction" },
       ],
     },
+    // Generic cause-and-effect matrix template. Public illustration, not a customer spreadsheet.
+    images: {
+      card: [
+        {
+          src: "/images/projects/industrial-ai-normalization/matrix-card.webp",
+          alt: "Generic cause-and-effect matrix template relating process input variables to weighted outputs",
+          fit: "contain",
+        },
+      ],
+      hero: {
+        src: "/images/projects/industrial-ai-normalization/matrix-hero.webp",
+        position: "40% 55%",
+        opacity: 0.13,
+      },
+    },
   },
   {
     id: "P03",
@@ -154,18 +188,32 @@ export const projects: Entry[] = [
     category: "Engineering / Agentic AI / Data Analytics",
     description:
       "Built a Snowflake-powered AI decision agent that integrates marketing, sales, conversion funnel, and customer-service data to identify bottlenecks, evaluate competing business priorities, and generate actionable recommendations.",
-    status: "Snowflake Hackathon 2026",
+    status: "Korea Snowflake Hackathon 2026",
     links: [{ label: "View repository", href: "https://github.com/CG-Brian/telecom-ops-agent" }],
     detail: {
       subtitle: "From fragmented operational data to evidence-grounded business decisions.",
       facts: [
-        { label: "Context", value: "Snowflake Hackathon 2026 · April 2026 · Prototype, not a deployed product" },
+        { label: "Context", value: "Korea Snowflake Hackathon 2026 · April 2026 · Prototype, not a deployed product" },
         { label: "Areas", value: "Applied AI · Data Engineering · Agentic AI" },
         {
           label: "Stack",
           value: "Python · Cortex Analyst · Cortex Complete · Snowpark · SQL · Semantic Views · Streamlit · Pandas",
         },
       ],
+    },
+    images: {
+      card: [
+        {
+          src: "/images/projects/telecom-ops-agent/agent-card.webp",
+          alt: "Telecom operations agent in Streamlit: Korean-language example questions beside an integrated conclusion, action items and priorities",
+          position: "50% 20%",
+        },
+      ],
+      hero: {
+        src: "/images/projects/telecom-ops-agent/agent-hero.webp",
+        position: "60% 30%",
+        opacity: 0.12,
+      },
     },
   },
 ];
@@ -193,6 +241,20 @@ export const research: Entry[] = [
         },
       ],
     },
+    images: {
+      card: [
+        {
+          src: "/images/research/cirqloom/explorer-card.webp",
+          alt: "Cirqloom explorer: GPT-2 Small layers in 3D with the published IOI circuit, beside the circuit sidebar and head inspector",
+          position: "50% 45%",
+        },
+      ],
+      hero: {
+        src: "/images/research/cirqloom/explorer-hero.webp",
+        position: "45% 50%",
+        opacity: 0.12,
+      },
+    },
   },
   {
     id: "R02",
@@ -217,6 +279,20 @@ export const research: Entry[] = [
           value: "Python · GPT-4o · Pydantic · Pandas · Statistical analysis · FastAPI · Next.js",
         },
       ],
+    },
+    images: {
+      card: [
+        {
+          src: "/images/research/stageground/sandbox-card.webp",
+          alt: "StageGround evaluation sandbox replaying a TNM prediction across prompting strategies",
+          position: "50% 0%",
+        },
+      ],
+      hero: {
+        src: "/images/research/stageground/sandbox-hero.webp",
+        position: "50% 90%",
+        opacity: 0.2,
+      },
     },
   },
 ];

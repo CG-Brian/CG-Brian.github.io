@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { SiteNavigation } from "@/components/layout/SiteNavigation";
 import { DetailLink } from "@/components/ui/DetailLink";
+import { HeroBackdrop } from "./HeroBackdrop";
 import { collections, sections, type Collection } from "@/lib/portfolio-data";
 
 type Props = {
@@ -34,7 +35,8 @@ export function CaseStudyPage({ collection, slug, children }: Props) {
           </span>
         </a>
 
-        <header className="mt-14 grid gap-8 border-b border-border pb-12 lg:grid-cols-12 lg:gap-6">
+        <header className="relative isolate mt-14 grid gap-8 border-b border-border pb-12 lg:grid-cols-12 lg:gap-6">
+          {entry.images?.hero && <HeroBackdrop image={entry.images.hero} />}
           <div className="lg:col-span-8">
             <p className="font-mono text-xs text-secondary">
               <span className="text-accent">{entry.id}</span>

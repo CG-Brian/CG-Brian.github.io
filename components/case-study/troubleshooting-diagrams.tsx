@@ -243,8 +243,8 @@ export function GuidanceBeforeAfter() {
 const retrieval = [
   {
     label: "Before",
-    query: "임펠러 마모로 인한 토출 압력 저하가 의심되어 분해 점검 후 교체 조치를 수행함",
-    gloss: "A long Korean cause-and-action narrative",
+    query: "Verdacht auf Förderdruckabfall durch Laufradverschleiß; Pumpe demontiert, geprüft und Laufrad ausgetauscht",
+    gloss: "A long German cause-and-action narrative",
     results: ["Site safety orientation", "Pressure terminology glossary", "Maintenance log template"],
     relevant: false,
     parts: [] as string[],
@@ -268,7 +268,7 @@ export function RetrievalDebug() {
             <PanelLabel className={cn("lg:pt-1", r.relevant && "text-accent")}>{r.label}</PanelLabel>
             <div>
               <p className="font-mono text-[10px] text-secondary">Query</p>
-              <p lang={r.relevant ? "en" : "ko"} className={cn("mt-1 rounded-[3px] border px-3 py-2 text-[13px] leading-relaxed", r.relevant ? "border-accent/50 font-mono text-[12px] text-accent" : "border-border text-ink")}>
+              <p lang={r.relevant ? "en" : "de"} className={cn("mt-1 rounded-[3px] border px-3 py-2 text-[13px] leading-relaxed", r.relevant ? "border-accent/50 font-mono text-[12px] text-accent" : "border-border text-ink")}>
                 {r.query}
               </p>
               <p className="mt-1.5 text-xs leading-relaxed text-secondary">{r.gloss}</p>

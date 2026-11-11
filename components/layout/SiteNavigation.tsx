@@ -35,11 +35,21 @@ export function SiteNavigation({ active, onNavigate, variant = "page" }: Props) 
         </Link>
 
         <nav aria-label="Sections">
-          <ol className="flex flex-wrap gap-x-5 gap-y-1 lg:gap-x-8">
+          <ol className="flex flex-wrap gap-x-5 gap-y-1 lg:flex-nowrap lg:items-center lg:gap-x-4">
             {sections.map((s, i) => {
               const isActive = active === i;
               return (
-                <li key={s.id}>
+                <li key={s.id} className="flex items-center lg:gap-x-4">
+                  {/* Progress connector: filled up to the current section (desktop only). */}
+                  {i > 0 && (
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "hidden h-px w-6 transition-colors duration-300 lg:block xl:w-10",
+                        active !== null && i <= active ? "bg-accent" : "bg-border",
+                      )}
+                    />
+                  )}
                   <a
                     href={`/#${s.id}`}
                     aria-current={isActive ? "location" : undefined}

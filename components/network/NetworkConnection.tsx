@@ -2,28 +2,31 @@ import { cn } from "@/lib/cn";
 
 export type Point = { x: number; y: number };
 
-/** Cubic Bézier with horizontal tangents at both ends, so lines meet section edges flat. */
-export function connectionPath(a: Point, b: Point) {
-  const c = Math.max(32, Math.abs(b.x - a.x) * 0.5);
-  return `M${a.x},${a.y} C${a.x + c},${a.y} ${b.x - c},${b.y} ${b.x},${b.y}`;
-}
-
 type Props = {
   from: Point;
   to: Point;
-  active?: boolean;
+  /**
+   * weight: faint background edge, opacity scaled by `weight`.
+   * content: a full-strength thin link. spine: the emphasised route. active: hovered group.
+   */
+  tone?: "weight" | "content" | "spine" | "active";
+  weight?: number;
 };
 
-export function NetworkConnection({ from, to, active = false }: Props) {
+/** A straight edge, like a weighted connection between two network layers. */
+export function NetworkConnection({ from, to, tone = "content", weight = 1 }: Props) {
   return (
-    <path
-      d={connectionPath(from, to)}
-      fill="none"
-      strokeWidth={1}
+    <line
+      x1={from.x}
+      y1={from.y}
+      x2={to.x}
+      y2={to.y}
+      strokeWidth={tone === "weight" ? 0.75 : 1}
+      strokeOpacity={tone === "weight" ? 0.2 + 0.6 * weight : tone === "spine" ? 0.7 : 1}
       vectorEffect="non-scaling-stroke"
       className={cn(
-        "transition-[stroke] duration-300",
-        active ? "stroke-accent" : "stroke-connection",
+        "transition-[stroke,stroke-opacity] duration-700",
+        tone === "active" || tone === "spine" ? "stroke-accent" : "stroke-connection",
       )}
     />
   );

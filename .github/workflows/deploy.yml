@@ -3,6 +3,9 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  # Daily rebuild so the contribution calendar stays current without manual updates.
+  schedule:
+    - cron: "17 6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -24,6 +27,13 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # Refresh data/contributions.json at build time. The token stays on the runner;
+      # on failure the committed snapshot is used instead.
+      - name: Fetch GitHub contributions
+        run: npm run contributions
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CONTRIBUTIONS_TOKEN: ${{ secrets.CONTRIBUTIONS_TOKEN }}
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build

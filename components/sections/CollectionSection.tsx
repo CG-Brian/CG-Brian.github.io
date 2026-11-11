@@ -3,13 +3,17 @@ import { Section } from "@/components/layout/Section";
 import { ConnectionLayer, type Connection } from "@/components/network/ConnectionLayer";
 import { DetailLink } from "@/components/ui/DetailLink";
 import { SectionLabel } from "@/components/ui/SectionLabel";
+import { ScrollCue } from "./ScrollCue";
 import { getOutline } from "@/lib/case-studies";
 import { cn } from "@/lib/cn";
+import type { Annotation } from "@/lib/network";
 import { collections, type Collection } from "@/lib/portfolio-data";
 
 type Props = {
   collection: Collection;
   connections: readonly Connection[];
+  /** Decorative notes along a boundary column. */
+  annotations?: readonly Annotation[];
   /** Mono heading for the content below the first viewport. */
   indexLabel: string;
   /** What one detail page is called in the index, e.g. "Case study". */
@@ -29,7 +33,7 @@ const gutters = "lg:pr-[9vw] lg:pl-[12vw]";
  * Shared layout for Projects and Research: a first viewport dominated by large
  * blocks, followed by an index that the section itself scrolls to.
  */
-export function CollectionSection({ collection, connections, indexLabel, writeupLabel, emptyNote }: Props) {
+export function CollectionSection({ collection, connections, annotations, indexLabel, writeupLabel, emptyNote }: Props) {
   const { label, number, entries } = collections[collection];
   const columns = Math.min(4, Math.max(3, entries.length));
   const titleId = `${collection}-title`;
@@ -38,7 +42,7 @@ export function CollectionSection({ collection, connections, indexLabel, writeup
     <Section id={collection} labelledBy={titleId}>
       {/* First viewport: blocks plus the connection layer that enters from the previous section. */}
       <div className="relative lg:h-full lg:min-h-[600px]">
-        <ConnectionLayer connections={connections} className="hidden lg:block" />
+        <ConnectionLayer connections={connections} annotations={annotations} className="hidden lg:block" />
 
         <div className={cn("relative z-10 flex flex-col lg:h-full lg:pt-24 lg:pb-20", gutters)}>
           <SectionLabel as="h2" id={titleId} number={number} label={label} />
@@ -65,15 +69,15 @@ export function CollectionSection({ collection, connections, indexLabel, writeup
             )}
           </ol>
 
-          <p aria-hidden className="mt-5 hidden font-mono text-[11px] text-secondary lg:block">
-            Scroll for {indexLabel.toLowerCase()} &darr;
-          </p>
+          <ScrollCue targetId={`${collection}-index`} label={`Scroll to explore ${indexLabel.toLowerCase()}`} />
         </div>
       </div>
 
       {/* Below the first viewport: scrolled by the section itself, never by the blocks. */}
       <div className={cn("relative z-10 pt-16 lg:pt-8 lg:pb-32", gutters)}>
-        <h3 className="font-mono text-xs uppercase tracking-[0.08em] text-secondary">{indexLabel}</h3>
+        <h3 id={`${collection}-index`} tabIndex={-1} className="font-mono text-xs uppercase tracking-[0.08em] text-secondary outline-none">
+          {indexLabel}
+        </h3>
         <ol className="mt-6 border-t border-border">
           {entries.map((entry) => {
             const outline = getOutline(collection, entry.slug);
