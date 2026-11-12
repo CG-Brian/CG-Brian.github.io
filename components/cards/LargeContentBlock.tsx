@@ -44,7 +44,10 @@ export function LargeContentBlock({ entry, href }: Props) {
         )}
         <h3 className="text-2xl font-medium leading-[1.1] tracking-[-0.025em] text-ink xl:text-[28px]">{entry.title}</h3>
         <p className="mt-3 text-sm leading-snug text-ink/80">{entry.category}</p>
-        <p className="mt-5 border-t border-border pt-5 text-sm leading-relaxed text-secondary">{entry.description}</p>
+        {/* On short desktop screens the block can't grow (it's height-locked to the slide), so clamp. */}
+        <p className="mt-5 border-t border-border pt-5 text-sm leading-relaxed text-secondary lg:[@media(max-height:820px)]:line-clamp-4">
+          {entry.description}
+        </p>
       </div>
     </Link>
   );

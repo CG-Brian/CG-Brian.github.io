@@ -38,9 +38,9 @@ export type Collection = "projects" | "research";
 export const profile = {
   name: "Brian Jeong",
   greeting: "Hi, I’m Brian Jeong.",
-  headline: "I build AI systems for real-world problems and explore how they work.",
+  headline: "I build AI systems for real-world problems, from model internals to deployed applications.",
   background:
-    "Computer Science & Biosciences at Rice University, with experience in forward-deployed AI engineering and an interest in mechanistic interpretability.",
+    "Computer Science & Biosciences at Rice University. Interested in how complex systems emerge from simpler interactions, and how that understanding connects to building reliable AI for the real world.",
   links: [
     { label: "GitHub", href: "https://github.com/CG-Brian" },
     { label: "LinkedIn", href: "https://www.linkedin.com/in/chae-ghang-jeong-b73827298" },
@@ -64,9 +64,9 @@ export type SectionId = (typeof sections)[number]["id"];
 export const identity = {
   heading: "Building systems. Understanding intelligence.",
   paragraphs: [
-    "I’m a Computer Science and Biosciences student at Rice University, interested in building reliable AI systems for real-world problems.",
-    "My experience in forward-deployed engineering has shaped how I approach software: understanding the problem first, then building systems that actually work.",
-    "I’m also exploring mechanistic interpretability to better understand what’s happening inside the models I build with.",
+    "Studying Computer Science and Biosciences at Rice taught me to think in systems: in biology, molecules interact to form pathways, networks and, ultimately, life. I’m fascinated by how complex behavior can emerge the same way inside artificial neural networks.",
+    "That curiosity extends to how AI models learn, reason and interact, from a model’s internals to the systems built around it, and how understanding those interactions can shape better AI.",
+    "Forward-deployed engineering gave it a practical direction: effective AI starts with understanding the problem, not just choosing the model. I want to do both, understanding how AI systems work and building applications that make a real difference.",
   ],
 };
 
@@ -113,11 +113,11 @@ export const projects: Entry[] = [
   {
     id: "P01",
     slug: "industrial-ai-troubleshooting",
-    focus: ["Conversational agent & retrieval", "Diagnostic algorithms & workflows", "Dynamic FM Guidance (prototype)"],
+    focus: ["Conversational AI & Retrieval", "Diagnostic Algorithms & Backend Features", "Symptom-Aware Decision Tree Traversal (Prototype)"],
     title: "Industrial AI Troubleshooting Platform",
     category: "Forward-Deployed Engineering / AI Agents",
     description:
-      "Owned multiple AI agent and backend features for an industrial troubleshooting platform, spanning conversational AI, retrieval, diagnostic algorithms, service reporting, and reliability. Proposed and prototyped symptom-driven guided troubleshooting.",
+      "Engineered conversational AI and diagnostic backend features for an industrial troubleshooting platform, including grounded RAG, deterministic root-cause scoring, and automated service reports. Also proposed and prototyped symptom-aware decision tree traversal to reduce redundant diagnostic steps.",
     status: "Internship case study · Summer 2026",
     detail: {
       subtitle: "Engineering reliable AI agents and diagnostic workflows for industrial operations.",
@@ -149,12 +149,12 @@ export const projects: Entry[] = [
   {
     id: "P02",
     slug: "industrial-ai-normalization",
-    focus: ["Deterministic spreadsheet parsing", "AI normalization & evaluation", "Traceable data contracts"],
+    focus: ["Spreadsheet Parsing & Header Inference", "LLM Normalization & Evaluation", "Field-Level Provenance & Data Contracts"],
     title: "Industrial AI Normalization Engine",
-    category: "Forward-Deployed Engineering / Applied AI",
+    category: "Forward-Deployed Engineering / Data & Applied AI",
     description:
-      "Developed core parsing and AI normalization capabilities for heterogeneous industrial engineering spreadsheets, spanning deterministic matrix extraction, automatic header inference, normalization quality, and field-level traceability.",
-    status: "Internship case study",
+      "Built a deterministic spreadsheet parser and automatic header inference for heterogeneous engineering documents. Improved LLM normalization reliability and developed field-level provenance contracts to produce structured, traceable engineering data.",
+    status: "Internship case study · 2026",
     detail: {
       subtitle:
         "Building reliable, traceable AI pipelines for heterogeneous industrial engineering spreadsheets.",
@@ -183,12 +183,12 @@ export const projects: Entry[] = [
   {
     id: "P03",
     slug: "telecom-ops-agent",
-    focus: ["Text-to-SQL on a semantic layer", "Multi-domain decision logic", "Evidence before explanation"],
+    focus: ["Text-to-SQL & Semantic Modeling", "Cross-Domain Evidence Integration", "Deterministic Decision Logic"],
     title: "Telecom Operations Decision Agent",
-    category: "Engineering / Agentic AI / Data Analytics",
+    category: "Agentic AI / Analytics Engineering",
     description:
-      "Built a Snowflake-powered AI decision agent that integrates marketing, sales, conversion funnel, and customer-service data to identify bottlenecks, evaluate competing business priorities, and generate actionable recommendations.",
-    status: "Korea Snowflake Hackathon 2026",
+      "Built a Snowflake-based decision agent combining natural-language-to-SQL queries, cross-domain operational analysis, and deterministic prioritization. Used retrieved business evidence to generate explainable recommendations across marketing, sales, and customer operations.",
+    status: "Korea Snowflake Hackathon 2026 · Prototype",
     links: [{ label: "View repository", href: "https://github.com/CG-Brian/telecom-ops-agent" }],
     detail: {
       subtitle: "From fragmented operational data to evidence-grounded business decisions.",
@@ -222,12 +222,12 @@ export const research: Entry[] = [
   {
     id: "R01",
     slug: "cirqloom",
-    focus: ["Measured attention vs. published circuits", "Evidence-preserving circuit graphs", "Reproducible research bundles"],
+    focus: ["Transformer Attention Measurement", "Evidence-Aware Circuit Visualization", "Reproducible Research Tooling"],
     title: "Cirqloom",
-    category: "Independent Research / Mechanistic Interpretability / Research Engineering",
+    category: "Mechanistic Interpretability / Research Engineering",
     description:
-      "Built an interactive 3D research tool for exploring GPT-2 Small's attention heads, inspecting measured attention patterns, and visualizing published circuit relationships with explicit evidence provenance.",
-    status: "Independent project · M3 in progress",
+      "Built an interactive 3D explorer for GPT-2 Small’s 144 attention heads, with real attention measurements and published circuit annotations. Designed evidence-aware representations that keep observed patterns distinct from documented circuit relationships.",
+    status: "Independent research · M3 in progress",
     links: [{ label: "View repository", href: "https://github.com/CG-Brian/cirqloom" }],
     detail: {
       subtitle: "An evidence-aware, interactive atlas of transformer attention heads and circuits.",
@@ -259,12 +259,12 @@ export const research: Entry[] = [
   {
     id: "R02",
     slug: "stageground",
-    focus: ["Label accuracy vs. source grounding", "Controlled prompting ablation", "Abstention & evidence binding"],
+    focus: ["Controlled LLM Evaluation", "Evidence Grounding & Validation", "Abstention & Statistical Analysis"],
     title: "StageGround",
-    category: "Independent Research / Clinical AI / LLM Evaluation",
+    category: "Clinical NLP / LLM Evaluation",
     description:
-      "Investigating whether correct clinical LLM predictions are genuinely supported by source documents through controlled prompting ablations, evidence-grounding evaluation, and abstention analysis.",
-    status: "Independent study · Experiments complete",
+      "Designed and ran a 1,000-case clinical LLM evaluation investigating whether correct cancer-stage predictions are supported by source evidence. Compared prompting strategies, evidence requirements, and abstention behavior to identify gaps between label accuracy and grounded reliability.",
+    status: "Independent research · Study complete",
     links: [
       { label: "View research repository", href: "https://github.com/CG-Brian/stage-ground" },
       { label: "Explore interactive results", href: "https://web-plum-one-77.vercel.app" },

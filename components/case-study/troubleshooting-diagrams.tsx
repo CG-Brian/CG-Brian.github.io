@@ -51,7 +51,7 @@ export function HybridArchitecture() {
         </span>
         <Chip>Application interface</Chip>
         <p className="mt-1 w-full font-mono text-[10px] text-secondary sm:mt-0 sm:ml-4 sm:w-auto">
-          chat &middot; guided sessions &middot; streaming &middot; review
+          chat &middot; guided troubleshooting &middot; streaming &middot; review
         </p>
       </div>
 
@@ -77,9 +77,9 @@ export function HybridArchitecture() {
         </div>
 
         <Lane
-          kicker="Deterministic · guided path"
-          title="Guided workflow service"
-          items={["Stores decision trees", "Serves sessions", "Tracks state", "Step navigation", "Diagnostic artifacts"]}
+          kicker="Deterministic · guided troubleshooting"
+          title="Guided troubleshooting service"
+          items={["Stores decision trees", "Runs diagnostic sessions", "Tracks session state", "Step navigation", "Diagnostic artifacts"]}
         >
           <p className="mt-5 text-sm leading-relaxed text-secondary">
             At runtime, the next step comes from the tree, not from a model deciding on the spot.
@@ -564,7 +564,7 @@ export function QualifiedFacts() {
 const glance = [
   { label: "My role", value: "AI agent and backend feature ownership" },
   { label: "Core areas", value: "Conversational AI · Retrieval · Diagnostic algorithms · Backend integration" },
-  { label: "Original proposal", value: "Dynamic FM Guidance: symptom-driven guided troubleshooting" },
+  { label: "Original proposal", value: "Symptom-aware decision tree traversal (prototype)" },
   { label: "Engineering focus", value: "Grounding · Determinism · Reliability" },
 ];
 
@@ -668,7 +668,7 @@ export function PromptArchitecture() {
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-4">
         <Chip tone="accent">Final answer</Chip>
         <span className="font-mono text-[11px] text-secondary">
-          Step transitions and guided-session state stay with the deterministic workflow, outside the prompt.
+          Moving between steps and tracking session state stay with the deterministic workflow, outside the prompt.
         </span>
       </div>
     </div>
@@ -683,7 +683,7 @@ const ledger = [
     tone: "text-ink",
     items: [
       "Service-report generation (internal and customer-facing)",
-      "Deterministic troubleshooting scoring, integrated into tree generation",
+      "Deterministic root-cause scoring, integrated into decision-tree generation",
       "Two-pass graph construction, fixed in both builder paths",
       "Retrieval query construction and evidence reuse",
       "Image relevance filtering after generation, fail-open",
@@ -696,7 +696,7 @@ const ledger = [
   {
     kind: "Proposed & prototyped",
     tone: "text-accent",
-    items: ["Dynamic FM Guidance: confirmed symptoms narrowing and reweighting existing decision trees, presented to the customer"],
+    items: ["Symptom-aware decision tree traversal: confirmed symptoms narrow and reweight candidate causes in existing trees, presented to the customer"],
   },
   {
     kind: "Validated, with scope",
@@ -738,13 +738,13 @@ export function ReportFlow() {
       <div>
         <PanelLabel>Inputs</PanelLabel>
         <ul className="mt-3 flex flex-col items-start gap-1.5">
-          {["Conversation history", "Guided-session records", "Operational context"].map((x) => (
+          {["Conversation history", "Diagnostic-session records", "Operational context"].map((x) => (
             <li key={x}>
               <Chip className="py-0.5 text-[11px]">{x}</Chip>
             </li>
           ))}
         </ul>
-        <p className="mt-2 text-xs leading-relaxed text-secondary">Fetched through service clients and mapped into typed DTOs.</p>
+        <p className="mt-2 text-xs leading-relaxed text-secondary">Fetched through service clients and mapped into typed data contracts (DTOs).</p>
       </div>
       <span aria-hidden className="hidden font-mono text-secondary lg:block">&rarr;</span>
       <div>

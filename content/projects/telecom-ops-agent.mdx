@@ -16,6 +16,18 @@ So the goal wasn't another dashboard. It was a system that could take scattered 
 Given the evidence we have, what should we fix first?
 </Pull>
 
+## My role & contributions
+
+For this hackathon prototype I built the decision agent end to end, from the data platform to the interface:
+
+- **Semantic modeling and platform setup.** I configured the Snowflake analytical environment and wrote the YAML semantic model over five analytical views that Cortex Analyst generates SQL from.
+- **Natural-language-to-SQL integration.** I connected Cortex Analyst and Snowpark into a pipeline that routes a business question to the relevant domains and turns the returned SQL results into structured evidence records.
+- **Cross-domain decision logic.** I implemented composite channel scoring, signal classification, conflict detection and action prioritization as deterministic Python, after exploring the datasets to find which measurements were worth deciding on.
+- **Grounded explanations.** I integrated Cortex Complete to explain computed evidence rather than produce it, and built the Streamlit interfaces for both the verified demo and the advanced agent.
+- **Evaluation and debugging.** I built the rule-defined evaluation harness for recommendations and numerical grounding, and worked through the authentication, API, semantic-model and query-execution problems along the way.
+
+It's a hackathon prototype, not a deployed product. The stable demo and the more experimental dynamic agent are kept distinct throughout this page.
+
 ## Learning the Snowflake AI stack
 
 I came into this hackathon thinking of Snowflake as a cloud SQL database. I left thinking of it as an integrated data and AI environment, where the hard part is how the pieces connect.
@@ -94,6 +106,8 @@ Individual metrics describe performance. Priorities come from how those metrics 
 
 **The decision.** Rank channels with an explicit composite: **40% conversion rate, 60% normalized revenue per session**, counting only channels with at least 500 sessions and 50 contracts. It's computed in plain Python, with no model in the loop.
 
+**What I built.** I implemented the scoring and the volume filters in the evidence engine, so every marketing recommendation, in the demo and in the agent, comes from the same inspectable calculation.
+
 <Figure caption="CVR-only ranks against composite ranks, as reported in the repository. Channel names anonymised.">
   <RankingComparison />
 </Figure>
@@ -112,6 +126,8 @@ Numerical decision criteria should be explicit and inspectable, not hidden insid
 
 **The decision.** Keep numbers and words in separate stages: SQL results become structured evidence, deterministic logic evaluates and ranks it, and only then does Cortex Complete write. The UI also exposes the underlying evidence and technical details, so a reader can check the reasoning instead of taking it on faith.
 
+**What I built.** I structured the pipeline so Cortex Complete receives only computed evidence and priorities, and returns a structured answer (conclusion, direct cause, indirect contributors, ranked actions) that the interface renders alongside the evidence behind it.
+
 **The trade-off.** It's more plumbing than a single prompt, and it reduces hallucination risk rather than eliminating it. A model can still phrase computed evidence badly. But it's no longer being asked to produce that evidence.
 
 ### A stable demo and an ambitious agent
@@ -126,13 +142,21 @@ The repository deliberately contains two paths, and they should never be mistake
 
 **The advanced agent** (`agent_v2.py`, behind a local Streamlit app) takes open-ended questions, generates SQL dynamically through Cortex Analyst, and runs the full multi-domain engine.
 
+**What I built.** Both: the Streamlit-in-Snowflake demo with its verified scenarios, and the local agent with dynamic SQL and the full engine.
+
 **Why both?** A hackathon demo has one job: work, reliably, in front of people. The dynamic path depended on more integration behaviour than I wanted riding on a live demo. Pinning verified scenarios gave the core idea a dependable stage, while the agent kept the flexible architecture. The demo is not a fully dynamic production agent, and I don't present it as one.
 
 <Pull>
 Prototype ambition and demo reliability are different engineering goals. It helps to admit which one you're serving.
 </Pull>
 
-## Evaluation
+## Results & validation
+
+What the prototype demonstrated:
+
+- **A stable demo** running as Streamlit in Snowflake, with three verified, repeatable scenarios: channel recommendation, funnel bottleneck and customer-service analysis.
+- **An advanced agent** that answers open-ended questions with dynamic SQL, cross-domain evidence, conflict detection and ranked actions.
+- **An offline evaluation harness** for recommendation agreement and numerical grounding.
 
 The repository includes an evaluation harness (`eval.py`) and a 15-case set (`eval_set.csv`): **12 marketing recommendation questions and 3 multi-domain priority questions**. Each case defines an expected rank band (top-1, top-3) or an expected priority, along with the behaviour it should show. The harness checks recommendation agreement, numerical grounding within a 2-point threshold, multi-domain priority choices, response completeness, and CVR and revenue comparisons against the average valid channel.
 
@@ -152,19 +176,6 @@ And the honest fine print, which matters as much as the numbers:
 <Pull>
 Evaluating a decision system only means something once you've said exactly what a correct decision is.
 </Pull>
-
-## My contributions
-
-The repository documents the implementation, and these are the parts of it I worked on:
-
-- **Data exploration.** I explored the operational datasets and identified which measurements were actually useful for decisions.
-- **Snowflake environment and semantic modelling.** I configured the analytical environment and wrote the semantic model that Cortex Analyst generates SQL from.
-- **Agent development.** I built the Python pipeline connecting business questions to structured, multi-domain evidence.
-- **Deterministic decision logic.** I implemented composite scoring, signal interpretation, conflict detection and action prioritization.
-- **LLM integration.** I connected Cortex Analyst and Cortex Complete to the analysis workflow.
-- **Debugging.** I worked through authentication, API configuration, semantic-model references and query execution problems.
-- **Evaluation.** I built the rule-defined evaluation of recommendations and numerical grounding.
-- **Interfaces.** I built the Streamlit apps for both the verified demo and the advanced agent.
 
 ## Lessons learned
 

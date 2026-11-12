@@ -33,7 +33,7 @@ The objective wasn't converting Excel to JSON. It was a dependable pipeline that
 How do you turn highly inconsistent, human-authored engineering spreadsheets into reliable structured data without losing relationships, meaning or traceability?
 </Pull>
 
-## What I built
+## My role & contributions
 
 During my Forward-Deployed Engineering internship, I developed core data-processing and AI normalization capabilities for an industrial engineering-document pipeline. My work spanned deterministic Excel parsing, automatic read-settings inference, normalization quality improvements, structured data contracts, and source-level traceability across service boundaries.
 
@@ -247,7 +247,17 @@ When the matrix and the IO list disagree, defined reconciliation rules decide wh
 Traceability isn't logging. It's a data contract that connects model output to its evidence and makes human review possible.
 </Pull>
 
-## Integration and validation
+## Results & validation
+
+What I can stand behind publicly, with its scope:
+
+- **Implemented:** the coordinate-aware parser, including merges, hidden and struck content, multi-row headers, vertical-merge continuation and preserved coordinates; and the `TrackedValueDTO` provenance contract with row and column anchors and conflict alternatives.
+- **Developed:** automatic read-settings inference with human confirmation. Its final production integration isn't something I can confirm, as noted above.
+- **Improved and evaluated:** rule-level normalization accuracy, and substantially fewer unsupported relationships, measured through repeated field-level evaluation against reference records. Internal figures stay private, and snapshots with different metrics aren't combined.
+- **Worked within:** the team's move to entity-level normalization, keeping shared identities consistent and relationship attributes on the right rule.
+- **Not claimed:** production deployment metrics, customer adoption, time savings or cost reductions.
+
+### Integration work
 
 Alongside the main features, I took on the systems work that keeps a pipeline like this usable in practice:
 
@@ -256,8 +266,6 @@ Alongside the main features, I took on the systems work that keeps a pipeline li
 - **Memory profiling** of large workbook processing, and **gzip response handling** for large payloads.
 - **Evaluation and reporting** of normalization quality across document conventions.
 - **Deployment-related debugging and rollback** when changes behaved differently outside development.
-
-The improvements I can describe publicly are qualitative: better rule-level normalization accuracy, substantially fewer unsupported relationships, consistent entity identities, and values that can be traced back to their cells. I haven't claimed production deployment metrics, customer adoption, time savings or cost reductions.
 
 ## Lessons learned
 

@@ -89,7 +89,7 @@ export function DynamicFMGuidance() {
         </section>
 
         <section>
-          <PanelLabel>2 · Guided questions</PanelLabel>
+          <PanelLabel>2 · Decision-tree questions</PanelLabel>
           <ol className="mt-3 space-y-1.5" aria-live="polite">
             {questions.map((q, i) => {
               const skip = skipped(q.known);

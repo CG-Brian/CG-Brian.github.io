@@ -13,7 +13,7 @@ A field technician faces a piece of industrial equipment that has stopped doing 
 The platform supported that work with two complementary systems:
 
 - **A conversational assistant** that answers technical questions, retrieves internal documentation, interprets the available fault context and explains troubleshooting information with grounded responses.
-- **Guided troubleshooting**, a structured decision-tree workflow that takes a technician from symptoms to candidate root causes, diagnostic steps and corrective actions, and records the session outcome.
+- **Guided troubleshooting**, a structured, step-by-step diagnostic workflow that helps technicians investigate symptoms, narrow possible root causes and determine corrective actions. Under the hood it follows a decision tree for each fault, and it records the outcome of every troubleshooting session.
 
 Answering questions is the easy part. The hard part is making the whole system dependable: repeatable workflows, evidence you can trust, guidance a technician can follow on site, and AI components that stay maintainable after the demo.
 
@@ -21,35 +21,37 @@ Answering questions is the easy part. The hard part is making the whole system d
 How do you combine probabilistic AI reasoning with deterministic troubleshooting workflows without giving up reliability, traceability or maintainability?
 </Pull>
 
-## My role & ownership
+## My role & contributions
 
 During my Forward-Deployed Engineering internship, I owned development of multiple AI agent and backend features for an enterprise industrial troubleshooting platform. My work spanned conversational agent behavior, retrieval, diagnostic workflow generation, algorithmic prioritization, service reporting and reliability engineering. I also proposed and prototyped a symptom-driven approach to making existing troubleshooting trees more efficient.
 
 The wider team owned the overall product architecture, frontend, document-ingestion infrastructure and other platform services. My ownership was feature-level, and it often extended across the AI backend and the interfaces of adjacent services.
 
-- **Proposed and prototyped:** Dynamic FM Guidance, symptom-driven narrowing of existing decision trees.
-- **Designed and implemented:** the main agent's prompt architecture, deterministic troubleshooting scoring, two-pass graph construction, service-report generation, image relevance filtering, structured diagnostic extraction and path validation.
+- **Proposed and prototyped:** symptom-aware decision tree traversal, which uses technician-confirmed symptoms to narrow candidate causes and skip redundant questions in the existing tree.
+- **Designed and implemented:** the main agent's prompt architecture, deterministic root-cause scoring, two-pass graph construction, service-report generation, image relevance filtering, structured diagnostic extraction and path validation.
 - **Improved:** retrieval query construction, corrective-action guidance, guardrail behavior, symptom-check formatting, and CI and test strategy.
-- **Integrated:** guided-session APIs, DTOs and data mapping across service boundaries.
+- **Integrated:** diagnostic-session APIs, DTOs (the typed data contracts exchanged between services) and data mapping across service boundaries.
 
-<Figure caption="Conceptual layers only. The highlighted lane is where most of my feature work lived; several features crossed into tree generation and the guided-workflow interfaces.">
+<Figure caption="Conceptual layers only. The highlighted lane is where most of my feature work lived; several features crossed into decision-tree generation and the interfaces of the guided-troubleshooting workflow.">
   <HybridArchitecture />
 </Figure>
 
 The platform deliberately splits two kinds of computation. Natural-language interpretation, evidence synthesis, tool selection, explanation and content enrichment are probabilistic, and that's where an LLM is useful. Tree traversal, workflow state, graph assembly, score computation and structural validation are deterministic, and they stay that way. Most of the decisions below come from respecting that boundary.
 
-## Dynamic FM Guidance
+## Reducing diagnostic steps with symptom-aware traversal
+
+I proposed and prototyped an approach that uses symptoms already confirmed by a technician to narrow possible root causes and skip redundant questions in an existing troubleshooting decision tree. I call it **symptom-aware decision tree traversal**, or symptom-aware traversal for short.
 
 <StoryBrief
   status="Proposed & prototyped · presented to the customer · not a production feature"
-  problem="Guided sessions walked every technician through the same predetermined yes/no tree for a fault code, even when they already knew the answers to several of its questions."
-  contribution="I proposed a symptom-driven enhancement to the existing decision trees, explored it in a prototype, and presented the concept in a customer-facing discussion."
+  problem="Every technician was walked through the same predetermined yes/no decision tree for a given fault code, the error the equipment reports, even when they already knew the answers to several of its questions."
+  contribution="I proposed and prototyped symptom-aware decision tree traversal: technician-confirmed symptoms narrow the candidate root causes and skip redundant questions, while the existing deterministic tree stays in control. I also presented the concept in a customer-facing discussion."
   outcome="A design that makes the validated tree do less unnecessary work instead of replacing it, with clear rules for when confirmed symptoms may narrow or only reweight the candidates."
 />
 
 A technician often arrives with useful information already in hand: an alarm on the panel, an abnormal reading, a visible condition, the result of a quick check. The static workflow still asked about all of it, one step at a time. That's correct behavior and inefficient guidance.
 
-My proposal was to let confirmed observations shape where the existing traversal starts and what it still needs to ask:
+My proposal was to let confirmed observations shape where the existing traversal starts and what it still needs to ask. An LLM never decides the path itself; it only helps interpret what the technician reports.
 
 <Figure caption="Synthetic fault, observations, questions and weights. The proposed path is a prototyped design, not deployed runtime behavior, and no measured question reduction is implied.">
   <DynamicFMGuidance />
@@ -79,7 +81,7 @@ The central design question was what a confirmed symptom should be allowed to do
       "Still skips questions that are already answered",
       "Recoverable if an observation turns out to be wrong",
     ],
-    cons: ["Saves fewer steps than pruning outright"],
+    cons: ["Saves fewer steps than excluding causes outright"],
   }}
   right={{
     title: "Hard exclusion",
@@ -93,7 +95,7 @@ The central design question was what a confirmed symptom should be allowed to do
 
 ### Prototype and exploration
 
-Building the prototype meant working through the existing decision-tree structure, symptom metadata and cause-symptom relationships, the recursive splitting and traversal logic, and how known observations could change candidate selection. It also showed how the deterministic troubleshooting score (below) could carry the prioritization. The approach I explored used confirmed symptoms to shape the starting candidate distribution, marked symptoms that were already used as answered, and then continued through the existing recursive tree logic.
+Building the prototype meant working through the existing decision-tree structure, symptom metadata and cause-symptom relationships, the recursive splitting and traversal logic, and how known observations could change candidate selection. It also showed how the deterministic root-cause score (below) could carry the prioritization. The approach I explored used confirmed symptoms to shape the starting candidate distribution, marked symptoms that were already used as answered, and then continued through the existing recursive tree logic.
 
 That's a prototype and a design, not a shipped feature, and I haven't measured a reduction in questions or diagnostic time.
 
@@ -120,7 +122,7 @@ The decisions that mattered most:
 - **Evidence policy stands on its own.** Grounding rules are stated separately from formatting, so the model uses retrieved evidence instead of inventing equipment details or unsupported procedures.
 - **Mandatory requirements outrank intent guidance.** Some rules apply to every answer. Others depend on whether the user wants an explanation, troubleshooting advice or equipment information, and those contextual hints can't override the global contract.
 - **Language follows the user.** Responses use the technician's language where supported, while keeping required technical identifiers and terminology intact.
-- **The workflow owns the workflow.** The assistant can explain symptoms and provide information, but step transitions and guided-session state belong to the deterministic decision-tree system, and the prompt says so explicitly.
+- **The workflow owns the workflow.** The assistant can explain symptoms and provide information, but moving between diagnostic steps and tracking where a technician is in a session belong to the deterministic decision-tree system, and the prompt says so explicitly.
 - **Answers are built for use.** Troubleshooting responses lead with actions, conditions, warnings and concise references, because a technically correct paragraph can still be unusable on site.
 
 Prompt architecture doesn't work in isolation. Guardrails decide which requests reach it, retrieval decides which evidence it can use, and the response contract makes output consistent enough for the rest of the system to depend on. I didn't measure a single accuracy number for the main chat; improvements were judged against representative requests and their retrieved context.
@@ -179,12 +181,12 @@ The right place in a pipeline for an AI judgment depends on what the system know
 
 ## Diagnostic algorithms & workflows
 
-### Deterministic troubleshooting scoring
+### Deterministic root-cause scoring
 
 <StoryBrief
   problem="A diagnostic workflow can surface several possible root causes with no signal about which to check first, and an LLM-generated ranking would be hard to reproduce."
-  contribution="I designed and implemented a deterministic troubleshooting score built on expert-provided signals, integrated it into diagnostic-tree generation, and unit-tested its mathematical behavior."
-  outcome="Reproducible, explainable priorities with no extra model calls, and the prioritization signal the Dynamic FM Guidance prototype builds on."
+  contribution="I designed and implemented a deterministic root-cause score, a reproducible priority for each possible cause, built on expert-provided signals, integrated it into the pipeline that generates diagnostic decision trees, and unit-tested its mathematical behavior."
+  outcome="Reproducible, explainable priorities with no extra model calls, and the prioritization signal the symptom-aware traversal prototype builds on."
 />
 
 The score combines occurrence likelihood, testing effort and corrective-action effort. Occurrence is weighted most heavily, effort applies a penalty, and the results are normalized within the relevant fault context so causes can be compared directly.
@@ -221,11 +223,11 @@ Use deterministic algorithms when a decision needs repeatability, mathematical c
 
 <StoryBrief
   problem="Generated diagnostic trees were structurally valid, yet the frontend and workflow service sometimes presented an alternative branch before the intended primary path."
-  contribution="I traced the issue to how the tree builder inserted edges and introduced two-pass graph construction, applying the same fix in both builder paths where it appeared."
+  contribution="I traced the issue to how the tree builder inserted edges and introduced two-pass graph construction, which assembles the main diagnostic path first and attaches alternative branches afterwards. I applied the same fix in both builder paths where it appeared."
   outcome="Downstream consumers receive the primary path first, protected by explicit edge-order assertions and graph-level regression tests."
 />
 
-The downstream services expected each step's outgoing edges in a particular order, but no schema said so. While building a chain, the builder attached some alternative edges immediately and added primary-path edges later, so the serialized order didn't match what consumers read.
+The downstream services expected each step's outgoing edges in a particular order, but no schema said so. That expectation was part of the *graph contract*: the assumptions other services make about the tree they receive. While building a chain, the builder attached some alternative edges immediately and added primary-path edges later, so the serialized order didn't match what consumers read.
 
 <Figure caption="Generic Primary / Alternative labels. No real diagnostic content.">
   <GraphOrdering />
@@ -240,7 +242,7 @@ Valid structured data can still break a downstream contract. When consumers rely
 ### Corrective-action guidance
 
 <StoryBrief
-  problem="Generated diagnostic instructions were technically relevant but hard to follow on site: long paragraphs, mixed preparation and repair steps, conditions buried in prose, warnings that didn't stand out, unnecessary metadata, overly long citations."
+  problem="The check and repair instructions generated for each diagnostic step were technically relevant but hard to follow on site: long paragraphs, mixed preparation and repair steps, conditions buried in prose, warnings that didn't stand out, unnecessary metadata, overly long citations."
   contribution="I grouped the defects into structural, formatting and noise problems, then redesigned the relevant prompts and output structures."
   outcome="Instructions with preparation, numbered steps, explicit conditions, separated warnings, concise references and language-aware formatting, validated qualitatively across diagnostic node types."
 />
@@ -253,9 +255,9 @@ I compared representative before-and-after outputs across different node types. 
 
 ### Symptom-check integration
 
-I also integrated `symptom_check` data into the existing guided-session formatting, so the same session data can feed both conversational responses and summary reports. That meant handling symptom identifiers and answers, locale fallback, unknown values and empty symptoms, while staying compatible with existing step and action records. The behavior is covered by unit tests.
+I also integrated `symptom_check` data, the symptoms a technician confirms during a session, into the existing diagnostic-session formatting, so the same session data can feed both conversational responses and summary reports. That meant handling symptom identifiers and answers, locale fallback, unknown values and empty symptoms, while staying compatible with existing step and action records. The behavior is covered by unit tests.
 
-This formatting work is related to Dynamic FM Guidance but separate from it. It isn't evidence that dynamic tree reduction was deployed.
+This formatting work is related to symptom-aware traversal but separate from it. It isn't evidence that symptom-aware traversal was deployed.
 
 ## Backend features & integration
 
@@ -264,7 +266,7 @@ This formatting work is related to Dynamic FM Guidance but separate from it. It 
 <StoryBrief
   problem="After a troubleshooting session, technicians needed a coherent summary of symptoms, steps, decisions, corrective actions and equipment context, and the AI backend had no report-generation capability."
   contribution="I designed and implemented the initial LLM-backed report-generation workflow end to end, from service-client integration and data mapping to prompts, error handling and tests."
-  outcome="Report generation for two purposes, an internal service report and a customer-facing service report, built on typed contracts with the guided-session service."
+  outcome="Report generation for two purposes, an internal service report and a customer-facing service report, built on typed contracts with the diagnostic-session service."
 />
 
 <Figure caption="Conceptual flow. Service names, schemas and prompts stay private.">
@@ -274,12 +276,12 @@ This formatting work is related to Dynamic FM Guidance but separate from it. It 
 The work covered:
 
 - report-generation service logic and its FastAPI-facing integration;
-- guided-session API client integration;
-- DTO and Pydantic model definitions, and the data mapping between them;
+- diagnostic-session API client integration;
+- DTOs (typed data contracts for each API payload) defined with Pydantic, and the data mapping between them;
 - prompt templates kept separate from application logic;
 - error handling, and unit tests for expected responses and failure cases.
 
-The integration also surfaced a real schema problem. The guided-session data I'd initially modelled didn't match the actual API response. I revisited the DTOs, simplified the models as the integration matured, and consolidated overlapping session models before they could drift apart.
+The integration also surfaced a real schema problem. The diagnostic-session data I'd initially modelled didn't match the actual API response. I revisited the DTOs, simplified the models as the integration matured, and consolidated overlapping session models before they could drift apart.
 
 <Pull>
 A generated report can be fluent and still wrong if the service contracts feeding it are inconsistent. Data mapping is part of AI correctness.
@@ -290,7 +292,7 @@ A generated report can be fluent and still wrong if the service contracts feedin
 For the diagnostic authoring workflow, I implemented two further backend capabilities:
 
 - **Structured diagnostic extraction** turns supplied free text into structured diagnostic information.
-- **Diagnostic-path validation** compares a proposed diagnostic path against supplied reference paths.
+- **Diagnostic-path validation** checks a proposed sequence of diagnostic steps against supplied reference paths.
 
 Both use structured output contracts and bounded input context, and both are independently testable. They're deliberately self-contained: they work only from context the caller provides and make no additional outbound service calls, which keeps their scope narrow and their availability independent of other services. The trade-off is that their data is only as fresh as what the caller sends. I also kept a strict naming distinction between *newly extracted* information and *existing candidates* supplied for comparison, so suggestions are never confused with references.
 
@@ -330,7 +332,7 @@ At a recorded snapshot, the repository's deterministic suite stood at 269 passin
 Production AI engineering includes the systems that make changes safe to test, review and integrate, not just the model-facing code.
 </Pull>
 
-## Results & contributions
+## Results & validation
 
 <Figure caption="What shipped as features, what was proposed and prototyped, and what was validated, each with its actual scope.">
   <ContributionLedger />
@@ -352,7 +354,7 @@ Nearly every problem lived in a different layer, and each layer needed a differe
 
 ### Improving a system can beat replacing it
 
-Dynamic FM Guidance showed me that a deterministic workflow can become more efficient by using confirmed context, without handing execution control to an LLM.
+Symptom-aware traversal showed me that a deterministic workflow can become more efficient by using confirmed context, without handing execution control to an LLM.
 
 ### Prompts are behavioral contracts
 
@@ -364,7 +366,7 @@ Retrieval failures, schema mismatches, graph ordering and prompt behavior each n
 
 ### Data and software contracts matter
 
-Report generation and guided-session integration showed that wrong assumptions about structured data produce convincing but incorrect output.
+Report generation and diagnostic-session integration showed that wrong assumptions about structured data produce convincing but incorrect output.
 
 ### Reliability extends beyond model behavior
 

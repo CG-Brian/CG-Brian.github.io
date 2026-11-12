@@ -14,6 +14,18 @@ So I wanted one place where the different kinds of evidence could be explored to
 How can we visualize transformer circuits while keeping observed attention patterns, published circuit annotations and causal evidence distinct?
 </Pull>
 
+## What I built & investigated
+
+Cirqloom is independent research engineering: I designed and built the analysis pipeline, the data model and the explorer myself.
+
+- **Attention measurement.** A GPT-2 Small analysis pipeline (pinned revision, a TransformerLens adapter) that captures real attention and scores it with three detectors: previous-token, first-token and induction. Each detector exports the exact cells it measures.
+- **Matched controls.** Deterministic repeated and non-repeated prompt suites, so every induction-style pattern is compared against a sequence that doesn't repeat.
+- **Evidence-aware circuit schema.** A graph model whose relations can connect heads, role groups or special endpoints, each carrying an evidence kind, status, channel, token positions and a citation locator.
+- **Published IOI integration.** I imported the Indirect Object Identification circuit of Wang et al. (2022) into that schema: 26 heads, 7 roles and 27 sourced relations, stored at the granularity the paper measured.
+- **The explorer and its tooling.** A React Three Fiber 3D atlas with a head inspector, a real attention heatmap and keyboard paths, all fed by versioned, validated bundles with a Pydantic↔Zod contract, deterministic rebuilds, and tests at every layer.
+
+The IOI roles and relations are published work that I imported and visualized, not results I reproduced. The causal experiments behind them are the paper's, and Cirqloom doesn't yet run interventions of its own.
+
 ## From heads to circuits
 
 The first version of the idea was a 3D map of GPT-2 Small: every head placed by layer and index, which you could rotate, zoom, select, inspect and highlight. It's a perfectly good way to see a model's *structure*. It just doesn't explain any *computation*.
@@ -151,9 +163,16 @@ CI runs the Python tests, rebuilds the synthetic fixture and checks it matches b
 A visualization is only trustworthy when the calculations, the serialization and the interactions can all be validated.
 </Pull>
 
-## Observations & limitations
+## Results & limitations
 
-Cirqloom's scientific output so far is exploratory, and I'd rather say exactly what it is:
+What the project has established so far, by kind of evidence:
+
+- **Built and validated:** the measurement pipeline, both bundles and the explorer, checked by bundle validation in CI, a cross-language contract test, detector tests on idealised synthetic patterns, and browser tests.
+- **Measured (experimental):** the attention patterns below, each with its matched control.
+- **Imported, not reproduced:** the IOI circuit's roles and relations, with citations.
+- **Not established:** any causal role for any head.
+
+Its scientific output is exploratory, and I'd rather say exactly what it is:
 
 - **Induction-like attention.** Several GPT-2 Small heads show strong repeated-sequence attention that collapses on matched controls. That's consistent with induction-like behaviour, but it doesn't prove a copying mechanism.
 - **Previous-token attention.** L4H11 is the clearest example, at about 0.99 in both suites.

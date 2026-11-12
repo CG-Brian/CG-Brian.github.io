@@ -16,6 +16,18 @@ How do structured outputs, explicit abstention, and mandatory evidence binding a
 
 The point was never to find the prompt with the highest accuracy. It was to see whether these interventions change the *relationship* between accuracy, evidence and abstention.
 
+## What I built & investigated
+
+StageGround is a completed independent study. I designed it, ran it and analysed it:
+
+- **Experimental design.** A controlled, paired ablation of four prompting strategies on the same 1,000 pathology reports: 12,000 predictions in all, with each arm adding exactly one intervention.
+- **Dataset preparation.** I joined 9,523 public TCGA reports to registry labels, drew a deterministic stratified sample, canonicalized stage labels, and kept registry `TX` distinct from model abstention.
+- **Evaluation methodology.** Four separate axes (label accuracy, span grounding, semantic support and abstention), with OCR-tolerant span matching and a conservative semantic-support heuristic stored as separate fields.
+- **Analysis.** A checkpointed, resumable experiment runner, a paired bootstrap with 5,000 resamples, the M0 analysis, and a leak-free comparison against a published supervised baseline.
+- **Validation tooling.** A blinded audit workflow and a public research replay of the committed predictions.
+
+The reports and registry labels come from a public corpus, the external baseline is a published model, and the only audit so far is model-assisted. None of it is clinical validation.
+
 ## Experimental design
 
 ### The data
@@ -77,6 +89,13 @@ A proxy metric can fail in ways that look exactly like model failures. The evalu
 </Pull>
 
 ## Findings
+
+The study's main results, each conditional on GPT-4o, this dataset and the automated support heuristic:
+
+1. **The highest-accuracy arm isn't the most grounded.** Constrained leads on raw accuracy; Grounded leads on semantic-supported accuracy and has the lowest unsupported rate.
+2. **Abstention alone isn't a free improvement.** It cuts unsupported assertions but costs accuracy and supported accuracy.
+3. **Evidence binding adds something of its own.** It improves grounding beyond abstention without lowering coverage.
+4. **Class imbalance hides unsupported predictions.** M0 calls are almost always right and almost never supported by their cited evidence.
 
 All figures below are pooled across T, N and M from the committed 1,000-case run.
 
