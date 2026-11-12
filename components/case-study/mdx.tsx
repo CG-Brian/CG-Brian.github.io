@@ -1,6 +1,7 @@
 import type { MDXComponents } from "mdx/types";
 import { DynamicFMGuidance } from "./DynamicFMGuidance";
 import { EntityOnceDiagram } from "./EntityOnceDiagram";
+import { NLAConcept, RelationExample, ResearchQuestions } from "./nla-diagrams";
 import {
   ArchitectureDiagram,
   CoordinateMapping,
@@ -140,6 +141,10 @@ export const mdxComponents: MDXComponents = {
   ErrorAnalysis,
   TrackedValueTrace,
   TraceFlow,
+  // Multimodal NLA research overview.
+  NLAConcept,
+  RelationExample,
+  ResearchQuestions,
   // Industrial AI Troubleshooting Platform diagrams.
   HybridArchitecture,
   Tradeoff,

@@ -1,0 +1,93 @@
+<Note>
+Ongoing undergraduate research at Rice University's ChILi Lab. The research questions are set, but the methods are still being designed. No experimental findings or publications are claimed on this page.
+</Note>
+
+## Research overview
+
+This research is being initiated through Rice University's [ChILi Lab](https://hanjiechen.github.io/group.html), following discussions with [Professor Hanjie Chen](https://profiles.rice.edu/faculty/hanjie-chen). I've committed to the project and am meeting with a PhD student in the lab to plan the approach, scope and first experiments.
+
+The direction builds on a question I keep returning to across my work: how do the parts of a model come together to produce what it outputs? For image generation, that means understanding how a model represents, combines and refines concepts while it builds a picture.
+
+<Pull>
+Can activation-based interpretability help us understand how multimodal generative models represent, combine and refine concepts during image generation?
+</Pull>
+
+Take the prompt "a dog riding a bicycle". A model has to represent a dog and a bicycle, but also the relationship between them, their relative positions, their attributes, and every constraint that makes the scene coherent. So the deeper question is whether a generative model's intermediate representations encode interpretable **relationships** between concepts, not only isolated features. This project doesn't assume they do; that's what it sets out to test.
+
+## Background: Natural Language Autoencoders
+
+The inspiration is Anthropic's [Natural Language Autoencoders Produce Unsupervised Explanations of LLM Activations](https://transformer-circuits.pub/2026/nla/) (2026). The idea is to put a natural-language bottleneck in the middle of an autoencoder:
+
+- An **activation verbalizer (AV)** maps a model's internal activation to a natural-language explanation.
+- An **activation reconstructor (AR)** tries to rebuild the activation from that explanation alone.
+
+Because the explanation is the only path between the two, training for good reconstruction pushes the explanation to carry real information about the activation. Researchers can then read what an activation seems to contain, and test how much of it survives being put into words.
+
+The published work is careful about its limits, and they shape this project:
+
+- **Reconstruction isn't faithfulness.** Rebuilding an activation well doesn't prove the explanation describes what the model actually uses.
+- **Plausible isn't complete.** A fluent explanation can leave information out, or add specifics that weren't there.
+- **Layers differ.** Different layers can hold very different kinds of information.
+- **No free transfer.** An NLA trained on language-model activations can't be assumed to work on an image-generation model's activations.
+
+That work is the starting point. Everything below is a direction I'm investigating, not a result.
+
+## From language to multimodal generation
+
+The first direction asks whether the core NLA idea can extend beyond language models, to the intermediate representations of diffusion image models, flow-matching models, or other suitable multimodal architectures.
+
+<Figure caption="Conceptual only. The top row is the published method; the bottom row is a proposed direction with open questions at every step.">
+  <NLAConcept />
+</Figure>
+
+The open questions are concrete:
+
+- Which layers, and which denoising or generation steps, carry useful semantic information?
+- How do those representations change as an image takes shape?
+- Could an AV-style model describe intermediate visual representations?
+- Could an AR-style model reconstruct meaningful information from those descriptions?
+- Would it need new training, a modified bottleneck, or both?
+
+The existing NLA can't simply be connected to a diffusion model. Any version of this needs adaptation and training of its own, and that's part of what has to be worked out.
+
+## Exploring structured concept representations
+
+The second direction came out of my early research discussions: a paragraph of natural language may not be the best container for what's inside a generative model. Structured forms might capture concept relationships more explicitly:
+
+- short phrases, or object–attribute pairs;
+- entity–relation graphs, such as `Dog — riding → Bicycle`;
+- spatially organized or scene-like descriptions;
+- executable, scene-program-like representations.
+
+The interesting question isn't whether an outside model can describe a finished image as a scene graph. It's whether a representation extracted from the model's **intermediate activations** can reflect information that matters to the generative process itself.
+
+<Figure caption="Conceptual. These three claims need different evidence and shouldn't be treated as equivalent.">
+  <RelationExample />
+</Figure>
+
+This direction is exploratory, and no representation has been chosen yet.
+
+## Research questions & potential experiments
+
+<Figure>
+  <ResearchQuestions />
+</Figure>
+
+The central concern is telling an explanation that reflects the model's internal behavior apart from one that merely sounds plausible. These are possible experiments, not completed ones:
+
+- **Reconstruction.** Measure whether an activation, or a meaningful part of it, can be rebuilt from an extracted description, and what information is preserved or lost.
+- **Controlled generation.** Compare prompts with the same concepts but different relationships, such as *a dog riding a bicycle* and *a dog standing beside a bicycle*, to see whether intermediate representations tell them apart.
+- **Interventions.** Where technically feasible, use activation patching, steering or controlled activation edits, and check whether the generated attributes or relationships change in predictable ways.
+- **Temporal analysis.** Look at selected generation steps to see when object, attribute and relational information becomes available. Early, middle and late steps aren't assumed to map onto fixed semantic stages without evidence.
+
+## Current status & references
+
+This research is being initiated through Rice University's ChILi Lab following discussions with Professor Hanjie Chen. The current focus is refining the research questions, selecting an appropriate model and representation, and designing initial experiments. No experimental findings are claimed at this stage.
+
+My participation is confirmed. The technical direction is exploratory, the specific experiments aren't finalized, and there are no results or publications yet. This page will change as the work does.
+
+**References**
+
+- Rice ChILi Lab: [hanjiechen.github.io/group.html](https://hanjiechen.github.io/group.html)
+- Professor Hanjie Chen, Rice University: [profiles.rice.edu/faculty/hanjie-chen](https://profiles.rice.edu/faculty/hanjie-chen)
+- Anthropic (2026), *Natural Language Autoencoders Produce Unsupervised Explanations of LLM Activations*: [transformer-circuits.pub/2026/nla](https://transformer-circuits.pub/2026/nla/)

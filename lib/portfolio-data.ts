@@ -221,6 +221,29 @@ export const projects: Entry[] = [
 export const research: Entry[] = [
   {
     id: "R01",
+    slug: "multimodal-nla",
+    focus: ["Multimodal Activation Interpretation", "Structured Concept Relationships", "Diffusion & Flow Models"],
+    title: "Natural Language Autoencoders for Multimodal Interpretability",
+    category: "Undergraduate Research / Multimodal AI / Mechanistic Interpretability",
+    description:
+      "Investigating how Natural Language Autoencoders can be adapted to interpret internal representations in multimodal generative models. Exploring whether structured descriptions of concepts and their relationships can help explain how models construct and refine generated images.",
+    status: "Ongoing Research · Rice ChILi Lab",
+    links: [
+      { label: "Rice ChILi Lab", href: "https://hanjiechen.github.io/group.html" },
+      { label: "Prof. Hanjie Chen", href: "https://profiles.rice.edu/faculty/hanjie-chen" },
+      { label: "Anthropic NLA paper", href: "https://transformer-circuits.pub/2026/nla/" },
+    ],
+    detail: {
+      subtitle: "Adapting Natural Language Autoencoders to multimodal generative models.",
+      facts: [
+        { label: "Affiliation", value: "Ongoing Undergraduate Research · Rice ChILi Lab" },
+        { label: "Research context", value: "Professor Hanjie Chen, Rice University" },
+        { label: "Status", value: "Early stage · Planning initial experiments · No results claimed" },
+      ],
+    },
+  },
+  {
+    id: "R02",
     slug: "cirqloom",
     focus: ["Transformer Attention Measurement", "Evidence-Aware Circuit Visualization", "Reproducible Research Tooling"],
     title: "Cirqloom",
@@ -257,7 +280,7 @@ export const research: Entry[] = [
     },
   },
   {
-    id: "R02",
+    id: "R03",
     slug: "stageground",
     focus: ["Controlled LLM Evaluation", "Evidence Grounding & Validation", "Abstention & Statistical Analysis"],
     title: "StageGround",
