@@ -45,7 +45,7 @@ export const profile = {
     { label: "GitHub", href: "https://github.com/CG-Brian" },
     { label: "LinkedIn", href: "https://www.linkedin.com/in/chae-ghang-jeong-b73827298" },
     { label: "Email", href: "mailto:cj36@rice.edu" },
-    { label: "Resume", href: null },
+    { label: "Resume", href: "/Chae-Ghang_Jeong_Resume.pdf" },
   ] satisfies ExternalLink[],
   /** Path under /public, e.g. "/portrait.jpg". Null shows a placeholder. */
   portrait: "/portrait.jpg" as string | null,
